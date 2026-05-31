@@ -1,0 +1,524 @@
+@extends('layouts.user')
+@section('content')
+<style>
+/* ── Base ─────────────────────────────────────────────── */
+.tp * { box-sizing: border-box; }
+.tp-back {
+    display: inline-flex; align-items: center; gap: 6px; font-size: 12px;
+    color: #aaa; text-decoration: none; margin-bottom: 20px;
+    transition: color .12s;
+}
+.tp-back:hover { color: #0a0a0a; }
+.tp-form-title { font-size: 22px; font-weight: 800; color: #0a0a0a; margin: 0 0 3px; letter-spacing: -.03em; }
+.tp-form-sub   { font-size: 13px; color: #aaa; margin: 0 0 24px; }
+
+/* ── Layout ───────────────────────────────────────────── */
+.tp-form-wrap { display: flex; gap: 20px; align-items: flex-start; }
+.tp-form-main { flex: 1; min-width: 0; }
+.tp-form-side { width: 272px; min-width: 272px; position: sticky; top: 72px; }
+
+/* ── Cards ────────────────────────────────────────────── */
+.tp-card {
+    background: #fff; border: 1px solid #ebebeb; border-radius: 10px;
+    padding: 20px 22px; margin-bottom: 14px;
+}
+.tp-card-header {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 18px;
+    padding-bottom: 14px; border-bottom: 1px solid #f5f5f5;
+}
+.tp-card-num {
+    width: 24px; height: 24px; border-radius: 6px; background: #0a0a0a;
+    color: #fff; font-size: 11px; font-weight: 800; display: flex;
+    align-items: center; justify-content: center; flex-shrink: 0;
+}
+.tp-card-title { font-size: 13px; font-weight: 700; color: #0a0a0a; letter-spacing: -.01em; }
+.tp-card-title span { font-size: 11px; font-weight: 400; color: #aaa; margin-left: 6px; }
+
+/* ── Type toggle ──────────────────────────────────────── */
+.tp-type-toggle {
+    display: flex; background: #f5f5f5; border-radius: 8px;
+    padding: 3px; gap: 2px; margin-bottom: 20px;
+}
+.tp-type-btn {
+    flex: 1; text-align: center; padding: 8px 12px; border-radius: 6px;
+    font-size: 13px; font-weight: 600; cursor: pointer; transition: all .15s;
+    user-select: none; border: none; background: transparent; color: #888;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+}
+.tp-type-btn.active { background: #fff; color: #0a0a0a; box-shadow: 0 1px 4px rgba(0,0,0,.1); }
+.tp-type-btn:not(.active):hover { color: #555; }
+
+/* ── Fields ───────────────────────────────────────────── */
+.tp-field { margin-bottom: 14px; }
+.tp-field:last-child { margin-bottom: 0; }
+.tp-field label {
+    display: block; font-size: 11px; font-weight: 600; color: #777;
+    margin-bottom: 5px; text-transform: uppercase; letter-spacing: .06em;
+}
+.tp-field label .req { color: #e11d48; margin-left: 2px; }
+.tp-field input,
+.tp-field select,
+.tp-field textarea {
+    width: 100%; padding: 9px 12px; border: 1.5px solid #e8e8e8;
+    border-radius: 7px; font-size: 13px; color: #222;
+    background: #fff; transition: border-color .15s, box-shadow .15s;
+    outline: none;
+}
+.tp-field input:focus,
+.tp-field select:focus,
+.tp-field textarea:focus {
+    border-color: #0a0a0a; box-shadow: 0 0 0 3px rgba(10,10,10,.06);
+}
+.tp-field textarea { min-height: 78px; resize: vertical; }
+.tp-row { display: flex; gap: 12px; }
+.tp-row .tp-field { flex: 1; min-width: 0; }
+
+/* ── Items table ──────────────────────────────────────── */
+.tp-items-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+.tp-items-table thead th {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #bbb; padding: 0 8px 10px; text-align: left;
+}
+.tp-items-table .tp-item-row td { padding: 4px 6px; vertical-align: top; }
+.tp-items-table input {
+    width: 100%; padding: 8px 10px; border: 1.5px solid #e8e8e8;
+    border-radius: 6px; font-size: 12px; color: #222; background: #fff; outline: none;
+    transition: border-color .15s;
+}
+.tp-items-table input:focus { border-color: #0a0a0a; }
+.tp-items-table .tp-item-sub-input { margin-top: 4px; background: #fafafa !important; font-size: 11px !important; color: #aaa !important; }
+.tp-item-total-cell {
+    display: flex; align-items: center; justify-content: flex-end;
+    padding: 8px 4px; font-size: 13px; font-weight: 700; color: #0a0a0a;
+    min-width: 80px; white-space: nowrap;
+}
+.tp-add-item {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 12px;
+    border: 1.5px dashed #e0e0e0; border-radius: 6px; background: none;
+    font-size: 12px; font-weight: 600; color: #aaa; cursor: pointer;
+    transition: all .12s; text-decoration: none; margin-top: 4px;
+}
+.tp-add-item:hover { border-color: #0a0a0a; color: #0a0a0a; }
+.tp-remove-item {
+    width: 28px; height: 28px; border: none; background: #f5f5f5;
+    border-radius: 6px; cursor: pointer; color: #ccc; font-size: 12px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all .1s; margin-top: 6px;
+}
+.tp-remove-item:hover { background: #fff1f2; color: #e11d48; }
+
+/* ── Summary ──────────────────────────────────────────── */
+.tp-summary {
+    background: #fafafa; border-radius: 8px; padding: 14px 16px; margin-top: 10px;
+    border: 1px solid #f0f0f0;
+}
+.tp-summary-row {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: #888; padding: 3px 0;
+}
+.tp-summary-row.total {
+    font-size: 16px; font-weight: 800; color: #0a0a0a; letter-spacing: -.02em;
+    border-top: 1px solid #e8e8e8; margin-top: 8px; padding-top: 10px;
+}
+.tp-summary-row.total span:last-child { font-size: 18px; }
+
+/* ── Template picker ──────────────────────────────────── */
+.tp-templates { display: grid; grid-template-columns: repeat(5,1fr); gap: 6px; }
+.tp-tpl {
+    border: 2px solid #e8e8e8; border-radius: 7px; cursor: pointer;
+    text-align: center; padding: 0 0 7px; overflow: hidden;
+    font-size: 9px; font-weight: 700; color: #aaa;
+    text-transform: uppercase; letter-spacing: .05em;
+    transition: all .12s; user-select: none;
+}
+.tp-tpl-preview {
+    height: 42px; width: 100%; margin-bottom: 6px; position: relative; overflow: hidden;
+}
+/* Mini-preview bars representing each template's colour system */
+.tp-tpl-1 .tp-tpl-preview { background: #fff8ee; }
+.tp-tpl-1 .tp-tpl-preview::before { content:''; position:absolute; top:0; left:0; right:0; height:12px; background:#c8a96e; }
+.tp-tpl-1 .tp-tpl-preview::after  { content:''; position:absolute; bottom:8px; left:8px; right:8px; height:2px; background:#f0ead8; }
+
+.tp-tpl-2 .tp-tpl-preview { background: #f8faff; }
+.tp-tpl-2 .tp-tpl-preview::before { content:''; position:absolute; top:0; left:0; right:0; height:4px; background:linear-gradient(90deg,#1a73e8,#0d47a1); }
+.tp-tpl-2 .tp-tpl-preview::after  { content:''; position:absolute; top:14px; left:8px; width:40%; height:6px; border-radius:2px; background:#1a73e8; opacity:.2; }
+
+.tp-tpl-3 .tp-tpl-preview { background: #111; }
+.tp-tpl-3 .tp-tpl-preview::before { content:''; position:absolute; top:8px; right:10px; width:30%; height:8px; border-radius:2px; background:rgba(255,255,255,.25); }
+.tp-tpl-3 .tp-tpl-preview::after  { content:''; position:absolute; bottom:8px; left:8px; right:8px; height:1px; background:rgba(255,255,255,.1); }
+
+.tp-tpl-4 .tp-tpl-preview { background: #fdf6ee; }
+.tp-tpl-4 .tp-tpl-preview::before { content:''; position:absolute; top:0; left:0; right:0; height:14px; background:#4a2c0a; }
+.tp-tpl-4 .tp-tpl-preview::after  { content:''; position:absolute; bottom:8px; left:8px; right:8px; height:2px; background:#e8d5b5; }
+
+.tp-tpl-5 .tp-tpl-preview { background: #fff; }
+.tp-tpl-5 .tp-tpl-preview::before { content:''; position:absolute; top:10px; left:8px; right:8px; height:1px; background:#111; }
+.tp-tpl-5 .tp-tpl-preview::after  { content:''; position:absolute; top:18px; left:8px; width:50%; height:4px; border-radius:2px; background:#f0f0f0; }
+
+.tp-tpl.selected { border-color: #0a0a0a; color: #0a0a0a; }
+.tp-tpl.selected .tp-tpl-preview { opacity: 1; }
+.tp-tpl:not(.selected) .tp-tpl-preview { opacity: .85; }
+.tp-tpl:hover { border-color: #888; }
+
+/* ── Side card labels ─────────────────────────────────── */
+.tp-side-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .08em; color: #aaa; margin-bottom: 6px; display: block;
+}
+.tp-side-total-wrap {
+    background: #0a0a0a; border-radius: 8px; padding: 16px;
+    margin-top: 10px; text-align: center;
+}
+.tp-side-total-label { font-size: 10px; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+.tp-side-total-amount { font-size: 26px; font-weight: 800; color: #fff; letter-spacing: -.03em; line-height: 1; }
+.tp-side-total-currency { font-size: 13px; font-weight: 600; color: rgba(255,255,255,.5); margin-right: 3px; vertical-align: .15em; }
+
+/* ── Save bar ─────────────────────────────────────────── */
+.tp-save-bar {
+    position: sticky; bottom: 0; z-index: 50;
+    background: #fff; border: 1px solid #ebebeb; border-radius: 10px;
+    padding: 12px 14px; display: flex; gap: 10px;
+    box-shadow: 0 -4px 20px rgba(0,0,0,.06); margin-top: 14px;
+}
+.tp-save-btn {
+    flex: 1; padding: 11px 14px; border-radius: 7px; font-size: 13px; font-weight: 700;
+    border: none; cursor: pointer; transition: all .15s; display: flex;
+    align-items: center; justify-content: center; gap: 7px;
+    white-space: nowrap;
+}
+.tp-save-btn-draft { background: #f5f5f5; color: #555; }
+.tp-save-btn-draft:hover { background: #ebebeb; }
+.tp-save-btn-send  { background: #0a0a0a; color: #fff; }
+.tp-save-btn-send:hover { background: #222; }
+
+@media (max-width: 860px) {
+    .tp-form-wrap { flex-direction: column; }
+    .tp-form-side { width: 100%; position: static; min-width: 0; }
+}
+</style>
+
+<div class="tp">
+<a href="{{ route('tourpay.vendor.index') }}" class="tp-back">
+    <i class="icofont-arrow-left"></i> {{ __("Back to TourPay") }}
+</a>
+<div class="tp-form-title">{{ $page_title }}</div>
+<div class="tp-form-sub">{{ $type === 'quotation' ? __("Create a professional quotation for your client.") : __("Create a professional invoice for your client.") }}</div>
+
+@include('admin.message')
+
+<form method="POST" action="{{ route('tourpay.vendor.store', $row->id ?? -1) }}" id="tp-form">
+    @csrf
+    <input type="hidden" name="type"   id="tp-type-input"   value="{{ old('type',   $row->type   ?? $type) }}">
+    <input type="hidden" name="action" id="tp-action-input" value="draft">
+
+    <div class="tp-form-wrap">
+
+        {{-- ── LEFT ── --}}
+        <div class="tp-form-main">
+
+            {{-- Type toggle --}}
+            <div class="tp-type-toggle">
+                <button type="button" class="tp-type-btn {{ ($row->type ?? $type) === 'invoice'   ? 'active' : '' }}" data-type="invoice"   onclick="setType('invoice')">
+                    <i class="icofont-money"></i> {{ __("Invoice") }}
+                </button>
+                <button type="button" class="tp-type-btn {{ ($row->type ?? $type) === 'quotation' ? 'active' : '' }}" data-type="quotation" onclick="setType('quotation')">
+                    <i class="icofont-file-document"></i> {{ __("Quotation") }}
+                </button>
+            </div>
+
+            {{-- ① Client --}}
+            <div class="tp-card">
+                <div class="tp-card-header">
+                    <div class="tp-card-num">1</div>
+                    <div class="tp-card-title">{{ __("Client Details") }}</div>
+                </div>
+                <div class="tp-row">
+                    <div class="tp-field">
+                        <label>{{ __("Full Name") }}<span class="req">*</span></label>
+                        <input type="text" name="client_name" value="{{ old('client_name', $row->client_name) }}" required placeholder="Jane Smith">
+                    </div>
+                    <div class="tp-field">
+                        <label>{{ __("Email Address") }}</label>
+                        <input type="email" name="client_email" value="{{ old('client_email', $row->client_email) }}" placeholder="jane@example.com">
+                    </div>
+                </div>
+                <div class="tp-row">
+                    <div class="tp-field">
+                        <label>{{ __("Phone Number") }}</label>
+                        <input type="text" name="client_phone" value="{{ old('client_phone', $row->client_phone) }}" placeholder="+27 83 000 0000">
+                    </div>
+                    <div class="tp-field">
+                        <label>{{ __("Country") }}</label>
+                        <input type="text" name="client_country" value="{{ old('client_country', $row->client_country) }}" placeholder="South Africa">
+                    </div>
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Address") }}</label>
+                    <textarea name="client_address" rows="2" placeholder="{{ __('Street, City, Postal Code') }}">{{ old('client_address', $row->client_address) }}</textarea>
+                </div>
+            </div>
+
+            {{-- ② Service --}}
+            <div class="tp-card">
+                <div class="tp-card-header">
+                    <div class="tp-card-num">2</div>
+                    <div class="tp-card-title">{{ __("Service / Project") }} <span>{{ __("optional") }}</span></div>
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Title") }}</label>
+                    <input type="text" name="title" value="{{ old('title', $row->title) }}" placeholder="{{ __('e.g. Safari Package — Kruger 2026') }}">
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Description") }}</label>
+                    <textarea name="description" rows="3" placeholder="{{ __('Brief summary of what is included…') }}">{{ old('description', $row->description) }}</textarea>
+                </div>
+            </div>
+
+            {{-- ③ Items --}}
+            <div class="tp-card">
+                <div class="tp-card-header">
+                    <div class="tp-card-num">3</div>
+                    <div class="tp-card-title">{{ __("Line Items") }}</div>
+                </div>
+                <table class="tp-items-table">
+                    <thead>
+                        <tr>
+                            <th style="width:38%">{{ __("Item / Description") }}</th>
+                            <th style="width:12%">{{ __("Qty") }}</th>
+                            <th style="width:20%">{{ __("Unit Price") }}</th>
+                            <th style="width:18%;text-align:right">{{ __("Total") }}</th>
+                            <th style="width:32px"></th>
+                        </tr>
+                    </thead>
+                    <tbody id="tp-items-body">
+                        @php $items = old('items', $row->items->toArray() ?? []); @endphp
+                        @forelse($items as $i => $item)
+                        <tr class="tp-item-row">
+                            <td>
+                                <input type="text" name="items[{{ $i }}][name]" value="{{ $item['name'] }}" placeholder="{{ __('Item name') }}">
+                                <input type="text" name="items[{{ $i }}][description]" value="{{ $item['description'] ?? '' }}" placeholder="{{ __('Optional detail') }}" class="tp-item-sub-input">
+                            </td>
+                            <td><input type="number" name="items[{{ $i }}][quantity]"   value="{{ $item['quantity']   ?? 1 }}" min="0" step="any" class="tp-qty"   oninput="recalc()"></td>
+                            <td><input type="number" name="items[{{ $i }}][unit_price]" value="{{ $item['unit_price'] ?? 0 }}" min="0" step="any" class="tp-price" oninput="recalc()"></td>
+                            <td><div class="tp-item-total-cell tp-item-total">{{ number_format(($item['quantity'] ?? 1) * ($item['unit_price'] ?? 0), 2) }}</div></td>
+                            <td><button type="button" class="tp-remove-item" onclick="removeItem(this)"><i class="icofont-trash"></i></button></td>
+                        </tr>
+                        @empty
+                        <tr class="tp-item-row">
+                            <td>
+                                <input type="text" name="items[0][name]" placeholder="{{ __('Item name') }}">
+                                <input type="text" name="items[0][description]" placeholder="{{ __('Optional detail') }}" class="tp-item-sub-input">
+                            </td>
+                            <td><input type="number" name="items[0][quantity]"   value="1" min="0" step="any" class="tp-qty"   oninput="recalc()"></td>
+                            <td><input type="number" name="items[0][unit_price]" value="0" min="0" step="any" class="tp-price" oninput="recalc()"></td>
+                            <td><div class="tp-item-total-cell tp-item-total">0.00</div></td>
+                            <td><button type="button" class="tp-remove-item" onclick="removeItem(this)"><i class="icofont-trash"></i></button></td>
+                        </tr>
+                        @endforelse
+                    </tbody>
+                </table>
+                <button type="button" class="tp-add-item" onclick="addItem()">
+                    <i class="icofont-plus-circle"></i> {{ __("Add Line Item") }}
+                </button>
+            </div>
+
+            {{-- ④ Notes --}}
+            <div class="tp-card">
+                <div class="tp-card-header">
+                    <div class="tp-card-num">4</div>
+                    <div class="tp-card-title">{{ __("Notes & Terms") }} <span>{{ __("optional") }}</span></div>
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Notes") }}</label>
+                    <textarea name="notes" rows="3" placeholder="{{ __('Thank you for your business…') }}">{{ old('notes', $row->notes) }}</textarea>
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Payment Terms") }}</label>
+                    <textarea name="payment_terms" rows="2" placeholder="{{ __('e.g. 50% deposit on acceptance, balance before travel.') }}">{{ old('payment_terms', $row->payment_terms ?? setting_item('tourpay_default_payment_terms')) }}</textarea>
+                </div>
+            </div>
+
+        </div>
+
+        {{-- ── RIGHT ── --}}
+        <div class="tp-form-side">
+
+            {{-- Template --}}
+            <div class="tp-card">
+                <div class="tp-card-header" style="margin-bottom:14px;">
+                    <div class="tp-card-num" style="background:#6366f1;">T</div>
+                    <div class="tp-card-title">{{ __("Template") }}</div>
+                </div>
+                <div class="tp-templates">
+                    @php $selectedTpl = old('template', $row->template ?? 1); @endphp
+                    @foreach([1=>'Classic',2=>'Modern',3=>'Bold',4=>'Safari',5=>'Minimal'] as $tnum => $tname)
+                    <div class="tp-tpl tp-tpl-{{ $tnum }} {{ $selectedTpl == $tnum ? 'selected' : '' }}" onclick="selectTemplate({{ $tnum }})">
+                        <div class="tp-tpl-preview"></div>
+                        {{ $tname }}
+                    </div>
+                    @endforeach
+                </div>
+                <input type="hidden" name="template" id="tp-template-input" value="{{ old('template', $row->template ?? 1) }}">
+            </div>
+
+            {{-- Financials --}}
+            <div class="tp-card">
+                <div class="tp-card-header" style="margin-bottom:14px;">
+                    <div class="tp-card-num" style="background:#16a34a;">$</div>
+                    <div class="tp-card-title">{{ __("Financials") }}</div>
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Currency") }}</label>
+                    <select name="currency">
+                        @php
+                            $currencies  = ['ZAR'=>'ZAR — Rand','USD'=>'USD — Dollar','EUR'=>'EUR — Euro','GBP'=>'GBP — Pound','KES'=>'KES — Shilling','TZS'=>'TZS — Tanzanian Sh.','BWP'=>'BWP — Pula','NAD'=>'NAD — Namibian $'];
+                            $selectedCur = old('currency', $row->currency ?? setting_item('tourpay_default_currency','ZAR'));
+                        @endphp
+                        @foreach($currencies as $code => $label)
+                            <option value="{{ $code }}" {{ $selectedCur == $code ? 'selected' : '' }}>{{ $label }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Tax Rate (VAT %)") }}</label>
+                    <input type="number" name="tax_rate" id="tp-tax-rate"
+                           value="{{ old('tax_rate', $row->tax_rate ?? setting_item('tourpay_default_vat',15)) }}"
+                           min="0" max="100" step="any"
+                           oninput="recalc(); document.getElementById('tp-tax-rate-label').textContent = this.value">
+                </div>
+                <div class="tp-summary">
+                    <div class="tp-summary-row">
+                        <span>{{ __("Excl. VAT") }}</span>
+                        <span id="tp-subtotal">0.00</span>
+                    </div>
+                    <div class="tp-summary-row">
+                        <span>{{ __("VAT") }} (<span id="tp-tax-rate-label">{{ old('tax_rate', $row->tax_rate ?? setting_item('tourpay_default_vat',15)) }}</span>%)</span>
+                        <span id="tp-tax">0.00</span>
+                    </div>
+                </div>
+                <div class="tp-side-total-wrap">
+                    <div class="tp-side-total-label">{{ __("Total Due") }}</div>
+                    <div class="tp-side-total-amount">
+                        <span class="tp-side-total-currency" id="tp-currency-display">{{ $selectedCur }}</span><span id="tp-total">0.00</span>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Schedule --}}
+            <div class="tp-card">
+                <div class="tp-card-header" style="margin-bottom:14px;">
+                    <div class="tp-card-num" style="background:#f59e0b;font-size:13px;"><i class="icofont-calendar"></i></div>
+                    <div class="tp-card-title">{{ __("Schedule") }}</div>
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Status") }}</label>
+                    <select name="status">
+                        @php $selectedStatus = old('status', $row->status ?? 'draft'); @endphp
+                        @foreach(['draft','sent','paid','accepted','cancelled','expired'] as $st)
+                            <option value="{{ $st }}" {{ $selectedStatus == $st ? 'selected' : '' }}>{{ ucfirst($st) }}</option>
+                        @endforeach
+                    </select>
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Issue Date") }}</label>
+                    <input type="date" name="issue_date" value="{{ old('issue_date', $row->issue_date ? $row->issue_date->format('Y-m-d') : date('Y-m-d')) }}">
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Due Date") }}</label>
+                    <input type="date" name="due_date" value="{{ old('due_date', $row->due_date ? $row->due_date->format('Y-m-d') : '') }}">
+                </div>
+                <div class="tp-field" id="tp-valid-days-wrap" style="{{ ($row->type ?? $type) !== 'quotation' ? 'display:none' : '' }}">
+                    <label>{{ __("Valid For (days)") }}</label>
+                    <input type="number" name="valid_days" value="{{ old('valid_days', $row->valid_days ?? setting_item('tourpay_default_valid_days', 30)) }}" min="1">
+                </div>
+            </div>
+
+            {{-- Save bar --}}
+            <div class="tp-save-bar">
+                <button type="button" class="tp-save-btn tp-save-btn-draft" onclick="submitForm('draft')">
+                    <i class="icofont-save"></i> {{ __("Save Draft") }}
+                </button>
+                <button type="button" class="tp-save-btn tp-save-btn-send" onclick="submitForm('send')">
+                    <i class="icofont-paper-plane"></i> {{ __("Save & Send") }}
+                </button>
+            </div>
+
+        </div>{{-- /.tp-form-side --}}
+    </div>{{-- /.tp-form-wrap --}}
+</form>
+</div>{{-- /.tp --}}
+
+<script>
+var itemIndex = {{ count($items ?? []) }};
+
+function setType(t) {
+    document.getElementById('tp-type-input').value = t;
+    document.querySelectorAll('.tp-type-btn').forEach(function(b){
+        b.classList.toggle('active', b.dataset.type === t);
+    });
+    document.getElementById('tp-valid-days-wrap').style.display = t === 'quotation' ? '' : 'none';
+}
+
+function selectTemplate(n) {
+    document.getElementById('tp-template-input').value = n;
+    document.querySelectorAll('.tp-tpl').forEach(function(el){ el.classList.remove('selected'); });
+    document.querySelector('.tp-tpl-' + n).classList.add('selected');
+}
+
+function recalc() {
+    var total = 0;
+    document.querySelectorAll('.tp-item-row').forEach(function(row) {
+        var qty   = parseFloat(row.querySelector('.tp-qty').value)   || 0;
+        var price = parseFloat(row.querySelector('.tp-price').value) || 0;
+        var t     = Math.round(qty * price * 100) / 100;
+        total    += t;
+        var td = row.querySelector('.tp-item-total');
+        if (td) td.textContent = t.toFixed(2);
+    });
+    var taxRate   = parseFloat(document.getElementById('tp-tax-rate').value) || 0;
+    var taxAmount = Math.round((total - (total / (1 + taxRate / 100))) * 100) / 100;
+    var exVat     = Math.round((total - taxAmount) * 100) / 100;
+    document.getElementById('tp-subtotal').textContent = exVat.toFixed(2);
+    document.getElementById('tp-tax').textContent      = taxAmount.toFixed(2);
+    document.getElementById('tp-total').textContent    = total.toFixed(2);
+}
+
+function addItem() {
+    var i    = itemIndex++;
+    var body = document.getElementById('tp-items-body');
+    var tr   = document.createElement('tr');
+    tr.className = 'tp-item-row';
+    tr.innerHTML =
+        '<td>'
+        + '<input type="text" name="items['+i+'][name]" placeholder="{{ __("Item name") }}">'
+        + '<input type="text" name="items['+i+'][description]" placeholder="{{ __("Optional detail") }}" class="tp-item-sub-input">'
+        + '</td>'
+        + '<td><input type="number" name="items['+i+'][quantity]"   value="1" min="0" step="any" class="tp-qty"   oninput="recalc()"></td>'
+        + '<td><input type="number" name="items['+i+'][unit_price]" value="0" min="0" step="any" class="tp-price" oninput="recalc()"></td>'
+        + '<td><div class="tp-item-total-cell tp-item-total">0.00</div></td>'
+        + '<td><button type="button" class="tp-remove-item" onclick="removeItem(this)"><i class="icofont-trash"></i></button></td>';
+    body.appendChild(tr);
+    tr.querySelector('input').focus();
+    recalc();
+}
+
+function removeItem(btn) {
+    if (document.querySelectorAll('.tp-item-row').length > 1) {
+        btn.closest('.tp-item-row').remove();
+        recalc();
+    }
+}
+
+function submitForm(action) {
+    document.getElementById('tp-action-input').value = action;
+    document.getElementById('tp-form').submit();
+}
+
+// Sync currency display
+document.querySelector('select[name="currency"]').addEventListener('change', function() {
+    document.getElementById('tp-currency-display').textContent = this.value;
+});
+
+recalc();
+</script>
+@endsection

@@ -1,0 +1,1 @@
+<?php echo $__env->make('vendor.pagination.default', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?><?php /**PATH /home/lionel/Documents/Junkyard/gotrip/bc-cms/resources/views/vendor/pagination/bootstrap-4.blade.php ENDPATH**/ ?>

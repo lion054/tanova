@@ -1,0 +1,828 @@
+openapi: 3.0.0
+info:
+  title: Tsoka Tanova Trip Planning API
+  description: |
+    Professional trip planning API powered by Tanova deterministic engine.
+    Generate customized travel itineraries with real-time weather integration and intelligent activity selection.
+  version: 1.0.0
+  contact:
+    name: Tsoka Support
+    email: support@tsoka.travel
+  license:
+    name: Proprietary
+    url: https://tsoka.travel/license
+
+servers:
+  - url: https://portal.tsokatravel.com/api/v
+    description: Production API
+  - url: http://127.0.0.1:8000/api/v
+    description: Local Development
+
+security:
+  - BearerAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: API Key
+      description: |
+        Use your vendor API key with `sk_live_` prefix.
+        Example: `sk_live_Whc7dgqHXoLx4YJ8y4W4gTKoI9yfjUfAvQ5mnI1c`
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "trip_generation_failed"
+            message:
+              type: string
+              example: "Trip generation failed. Check destination and dates."
+
+    DailyWeather:
+      type: object
+      properties:
+        date:
+          type: string
+          format: date
+          example: "2026-06-15"
+        temp_min:
+          type: integer
+          example: 12
+        temp_max:
+          type: integer
+          example: 27
+        rain_prob:
+          type: integer
+          example: 0
+        condition:
+          type: string
+          enum: [sunny, partly_cloudy, cloudy, foggy, rainy, snowy, stormy, unavailable]
+          example: "sunny"
+        icon:
+          type: string
+          example: "☀️"
+
+    Activity:
+      type: object
+      properties:
+        time:
+          type: string
+          pattern: "^\\d{2}:\\d{2}$"
+          example: "08:00"
+        name:
+          type: string
+          example: "Tour of Victoria Falls — Walking Tour"
+        description:
+          type: string
+          example: "Scenic walking tour with professional guide"
+        duration:
+          type: number
+          format: float
+          example: 3.0
+        cost:
+          type: number
+          format: float
+          example: 23.00
+        included:
+          type: boolean
+          example: false
+        type:
+          type: string
+          example: "Activity"
+
+    Accommodation:
+      type: object
+      properties:
+        name:
+          type: string
+          example: "Nyota Backpackers"
+        type:
+          type: string
+          enum: [room, apartment]
+          example: "room"
+        stars:
+          type: integer
+          nullable: true
+        image:
+          type: string
+          nullable: true
+
+    ItineraryDay:
+      type: object
+      properties:
+        day:
+          type: integer
+          example: 1
+        date:
+          type: string
+          format: date
+          example: "2026-06-15"
+        title:
+          type: string
+          example: "Day 1"
+        weather:
+          $ref: '#/components/schemas/DailyWeather'
+        activities:
+          type: array
+          items:
+            $ref: '#/components/schemas/Activity'
+        accommodation:
+          $ref: '#/components/schemas/Accommodation'
+          nullable: true
+        meals:
+          type: object
+          properties:
+            breakfast:
+              type: boolean
+            lunch:
+              type: boolean
+            dinner:
+              type: boolean
+
+    Package:
+      type: object
+      properties:
+        package:
+          type: integer
+          example: 1
+        total_cost:
+          type: number
+          format: float
+          example: 5000.00
+        activity_cost:
+          type: number
+          format: float
+          example: 3200.00
+        stay_cost:
+          type: number
+          format: float
+          example: 1800.00
+        price_per_person:
+          type: number
+          format: float
+          example: 2500.00
+        hotel:
+          type: object
+          nullable: true
+          properties:
+            name:
+              type: string
+            type:
+              type: string
+            cost_per_night:
+              type: number
+              format: float
+            rooms:
+              type: integer
+        itinerary:
+          type: array
+          items:
+            $ref: '#/components/schemas/ItineraryDay'
+
+    Trip:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 42
+        title:
+          type: string
+          example: "Trip to Victoria Falls — 5 days, 2 guests"
+        destination:
+          type: string
+          example: "Victoria Falls"
+        dates:
+          type: object
+          properties:
+            start:
+              type: string
+              format: date
+              example: "2026-06-15"
+            end:
+              type: string
+              format: date
+              example: "2026-06-20"
+            nights:
+              type: integer
+              example: 5
+        guests:
+          type: integer
+          example: 2
+        status:
+          type: string
+          enum: [created, booked]
+          example: "created"
+        pricing:
+          type: object
+          properties:
+            estimated:
+              type: number
+              format: float
+              example: 5000.00
+            currency:
+              type: string
+              example: "USD"
+        packages:
+          type: integer
+          example: 8
+        weather:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyWeather'
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-06-15T10:30:00Z"
+        links:
+          type: object
+          properties:
+            self:
+              type: string
+              example: "/api/v/tanova/trips/42"
+            replan:
+              type: string
+              example: "/api/v/tanova/trips/42/replan"
+
+    WeatherChange:
+      type: object
+      properties:
+        day:
+          type: integer
+          example: 2
+        old:
+          $ref: '#/components/schemas/DailyWeather'
+        new:
+          $ref: '#/components/schemas/DailyWeather'
+        temp_diff:
+          type: number
+          format: float
+          example: -5.0
+        rain_diff:
+          type: number
+          format: float
+          example: 20.0
+
+    ActivitySwap:
+      type: object
+      properties:
+        day:
+          type: integer
+          example: 2
+        current_activity:
+          type: string
+          example: "Outdoor Hiking"
+        reason_to_swap:
+          type: string
+          example: "Day 2 now has 80% rain instead of 10%"
+        suggested_activity:
+          type: string
+          example: "Victoria Falls Museum"
+        why_better:
+          type: string
+          example: "Stays dry and protected from heavy rain"
+
+    ReplanResponse:
+      type: object
+      properties:
+        has_changes:
+          type: boolean
+          example: true
+        changes:
+          type: array
+          items:
+            $ref: '#/components/schemas/WeatherChange'
+        suggestions:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivitySwap'
+        fresh_weather:
+          type: array
+          items:
+            $ref: '#/components/schemas/DailyWeather'
+
+paths:
+  /tanova/generate:
+    post:
+      summary: Generate Trip Itineraries
+      description: |
+        Generate 8 customized travel itinerary packages based on destination, dates, budget, and number of guests.
+        Each package includes daily activities, accommodations, meals, weather forecasts, and pricing.
+
+        **Budget Tiers:**
+        - budget: $2,000 USD
+        - mid-range: $5,000 USD (recommended)
+        - luxury: $10,000 USD
+      tags:
+        - Tanova
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - destination
+                - start_date
+                - end_date
+                - guests
+              properties:
+                destination:
+                  type: string
+                  example: "Victoria Falls"
+                start_date:
+                  type: string
+                  format: date
+                  example: "2026-06-15"
+                end_date:
+                  type: string
+                  format: date
+                  example: "2026-06-20"
+                guests:
+                  type: integer
+                  minimum: 1
+                  maximum: 50
+                  example: 2
+                place_id:
+                  type: integer
+                  description: Location ID (optional, auto-detected if not provided)
+                  example: 6
+                budget:
+                  type: string
+                  enum: [budget, mid-range, luxury]
+                  default: mid-range
+                  example: "mid-range"
+                notes:
+                  type: string
+                  maxLength: 1000
+                  description: Special requests or preferences
+                  example: "Prefer adventure activities"
+      responses:
+        '201':
+          description: Trip packages generated successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      title:
+                        type: string
+                      destination:
+                        type: string
+                      dates:
+                        type: object
+                        properties:
+                          start:
+                            type: string
+                            format: date
+                          end:
+                            type: string
+                            format: date
+                          nights:
+                            type: integer
+                      guests:
+                        type: integer
+                      packages:
+                        type: integer
+                      weather:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/DailyWeather'
+                      links:
+                        type: object
+                        properties:
+                          self:
+                            type: string
+                          replan:
+                            type: string
+        '400':
+          description: Invalid request parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Trip generation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tanova/trips:
+    get:
+      summary: List Recent Trips
+      description: Retrieve paginated list of recently generated trips for the authenticated vendor.
+      tags:
+        - Tanova
+      parameters:
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+            maximum: 100
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: List of trips
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Trip'
+        '401':
+          description: Unauthorized - invalid or missing API key
+
+  /tanova/trips/{id}:
+    get:
+      summary: Get Trip Details
+      description: Retrieve full details of a specific trip including all packages and activities.
+      tags:
+        - Tanova
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 42
+      responses:
+        '200':
+          description: Trip details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Trip'
+        '403':
+          description: Forbidden - trip belongs to another vendor
+        '404':
+          description: Trip not found
+
+  /tanova/trips/{id}/replan:
+    get:
+      summary: Get Weather-Based Replan Suggestions
+      description: |
+        Analyze weather changes since trip creation and request Claude AI suggestions
+        for activity swaps that improve experience based on updated forecast.
+
+        **How it works:**
+        1. Fetches current weather forecast
+        2. Detects significant changes (5°C+ temp shift, rain change 20%+, condition change)
+        3. Uses Claude AI to suggest intelligent activity swaps
+        4. Returns structured recommendations for your review
+      tags:
+        - Tanova
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 42
+      responses:
+        '200':
+          description: Replan suggestions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: integer
+                    example: 1
+                  data:
+                    $ref: '#/components/schemas/ReplanResponse'
+        '403':
+          description: Forbidden - trip belongs to another vendor
+        '404':
+          description: Trip not found
+
+  /services/{type}:
+    get:
+      summary: Get Your Services
+      description: Retrieve all your listed services of a specific type. Only your vendor's services are returned.
+      tags:
+        - Services
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [hotels, tours, spaces, cars, flights, boats]
+          example: hotels
+      responses:
+        '200':
+          description: List of your services
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+        '401':
+          description: Unauthorized - invalid or missing API key
+
+  /enquiries:
+    post:
+      summary: Submit Customer Enquiry
+      description: Create a new customer enquiry for one of your services.
+      tags:
+        - Enquiries
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - service_id
+                - service_type
+                - customer_email
+              properties:
+                service_id:
+                  type: integer
+                  example: 42
+                service_type:
+                  type: string
+                  enum: [hotel, tour, space, car, flight, boat]
+                  example: hotel
+                customer_name:
+                  type: string
+                  example: "John Doe"
+                customer_email:
+                  type: string
+                  format: email
+                  example: "john@example.com"
+                customer_phone:
+                  type: string
+                  example: "+1234567890"
+                check_in:
+                  type: string
+                  format: date
+                  example: "2026-07-01"
+                check_out:
+                  type: string
+                  format: date
+                  example: "2026-07-05"
+                guests:
+                  type: integer
+                  example: 2
+                message:
+                  type: string
+                  example: "Do you have availability?"
+      responses:
+        '201':
+          description: Enquiry created successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                      status:
+                        type: string
+
+  /bookings:
+    get:
+      summary: List Bookings
+      description: Retrieve paginated list of customer bookings for your services. Only your vendor's bookings are returned.
+      tags:
+        - Bookings
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, confirmed, completed, cancelled]
+        - name: service_type
+          in: query
+          schema:
+            type: string
+            enum: [hotel, tour, space, car, flight, boat]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+            maximum: 100
+      responses:
+        '200':
+          description: List of bookings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+
+  /bookings/{id}:
+    get:
+      summary: Get Booking Details
+      description: Retrieve full details of a specific booking.
+      tags:
+        - Bookings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      responses:
+        '200':
+          description: Booking details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+        '403':
+          description: Forbidden - booking belongs to another vendor
+        '404':
+          description: Booking not found
+
+    put:
+      summary: Update Booking
+      description: Update booking status or details.
+      tags:
+        - Bookings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  type: string
+                  enum: [pending, confirmed, completed, cancelled]
+                  example: confirmed
+      responses:
+        '200':
+          description: Booking updated successfully
+        '403':
+          description: Forbidden - booking belongs to another vendor
+
+  /bookings/{id}/cancel:
+    post:
+      summary: Cancel Booking
+      description: Cancel a booking and process refund.
+      tags:
+        - Bookings
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 123
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason:
+                  type: string
+                  example: "Customer requested cancellation"
+                refund_percent:
+                  type: integer
+                  minimum: 0
+                  maximum: 100
+                  example: 100
+      responses:
+        '200':
+          description: Booking cancelled successfully
+        '403':
+          description: Forbidden - booking belongs to another vendor
+
+  /concierge/conversations:
+    get:
+      summary: List Conversations
+      description: Retrieve all customer conversations. Only your vendor's conversations are returned.
+      tags:
+        - Concierge
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          schema:
+            type: integer
+            default: 15
+            maximum: 100
+      responses:
+        '200':
+          description: List of conversations
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+
+  /concierge/conversations/{id}/messages:
+    post:
+      summary: Send Message
+      description: Send a message in a customer conversation.
+      tags:
+        - Concierge
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+          example: 42
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - message
+              properties:
+                message:
+                  type: string
+                  example: "Thank you for your inquiry. We have availability..."
+      responses:
+        '201':
+          description: Message sent successfully
+        '403':
+          description: Forbidden - conversation belongs to another vendor
+
+tags:
+  - name: Tanova
+    description: AI-powered trip planning engine
+  - name: Services
+    description: Your hotels, tours, spaces, and other services
+  - name: Enquiries
+    description: Customer enquiries for your services
+  - name: Bookings
+    description: Customer bookings and transactions
+  - name: Concierge
+    description: Customer messaging and support
+
+x-logo:
+  url: https://tsoka.travel/logo.png
+  altText: Tsoka Logo
+
+externalDocs:
+  description: Full API Documentation
+  url: https://tsoka.travel/api-docs
+
+x-apiKeyHeader: Authorization
+x-apiKeyExample: "Bearer sk_live_Whc7dgqHXoLx4YJ8y4W4gTKoI9yfjUfAvQ5mnI1c"

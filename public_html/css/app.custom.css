@@ -1,0 +1,50 @@
+/* ── Tsoka brand overrides — applied on top of Orion framework ── */
+
+:root {
+    --color-primary:     #1a0900;
+    --color-secondary:   #eea61a;
+    --color-bg:          #f9f5ec;
+    --color-paper:       #fefdf9;
+    --color-text:        #1a0900;
+    --color-text-muted:  #9a6033;
+    --color-bronze-deep: #ca8715;
+}
+
+/* Primary action buttons → Tsoka pill style */
+.theme-button-one,
+.btn-primary,
+button[type="submit"].theme-btn {
+    background: #1a0900 !important;
+    color: #fefdf9 !important;
+    border-radius: 9999px !important;
+    border: none !important;
+    transition: background 0.3s, color 0.3s !important;
+}
+.theme-button-one:hover,
+.btn-primary:hover {
+    background: #eea61a !important;
+    color: #1a0900 !important;
+}
+
+/* Links → Tsoka gold on hover */
+a:not(.nav-link):not(.btn):not(.logo-wrap):hover {
+    color: #eea61a;
+}
+
+/* Input focus → gold underline (for portal forms) */
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: #eea61a !important;
+    outline: none;
+    box-shadow: none !important;
+}
+
+/* Page body background → warm bone */
+body {
+    background-color: #f9f5ec;
+    font-family: 'Instrument Sans', system-ui, sans-serif;
+    color: #1a0900;
+}
+
+/*# sourceMappingURL=app.custom.css.map */

@@ -1,0 +1,2 @@
+<?php echo $__env->make('Review::frontend.form', array_diff_key(get_defined_vars(), ['__data' => 1, '__path' => 1]))->render(); ?>
+<?php /**PATH /home/lionel/Documents/Junkyard/gotrip/bc-cms/themes/GoTrip/Visa/Views/frontend/layouts/details/visa-review.blade.php ENDPATH**/ ?>

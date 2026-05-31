@@ -1,0 +1,48 @@
+# Tsoka Travel Portal - SEO Robot Rules
+# Last updated: 2026-05-31
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /api/internal/
+Disallow: /test/
+Disallow: /cdn-cgi/
+Disallow: /wp-admin/
+Disallow: /wp-login/
+Disallow: /*.json$
+Disallow: /*?*sort=
+Disallow: /*?*filter=
+Disallow: /search?q=
+
+# Crawl delay (in seconds)
+Crawl-delay: 1
+
+# Request rate
+Request-rate: 30/1m
+
+# Sitemap
+Sitemap: https://tsoka.travel/sitemap.xml
+Sitemap: https://tsoka.travel/sitemap-tours.xml
+Sitemap: https://tsoka.travel/sitemap-hotels.xml
+Sitemap: https://tsoka.travel/sitemap-destinations.xml
+
+# Allow popular search engines
+User-agent: Googlebot
+Allow: /
+Crawl-delay: 0
+Request-rate: 100/1m
+
+User-agent: Bingbot
+Allow: /
+Crawl-delay: 1
+
+User-agent: Slurp
+Allow: /
+Crawl-delay: 1
+
+# Block bad bots
+User-agent: AhrefsBot
+User-agent: SemrushBot
+User-agent: DotBot
+User-agent: MJ12bot
+Disallow: /

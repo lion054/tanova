@@ -1,0 +1,20 @@
+.bc-pagination, .goTrip-bc-pagination{
+    .custom-pagination{
+        a{
+            color: initial;
+        }
+        .p-item{
+            &.active{
+                .p-link{
+                    background-color: var(--color-dark-1) !important;
+                    color: var(--color-white);
+                }
+            }
+            &:hover{
+                .p-link{
+                    background-color: var(--color-light-2);
+                }
+            }
+        }
+    }
+}

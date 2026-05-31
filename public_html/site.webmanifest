@@ -1,0 +1,17 @@
+{
+  "name": "Tsoka Travel Portal",
+  "short_name": "Tsoka",
+  "description": "Professional travel booking and tour management platform",
+  "start_url": "https://portal.tsokatravel.com",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#FF6B35",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

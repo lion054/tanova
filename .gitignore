@@ -1,0 +1,15 @@
+.env
+.env.local
+.env.*.local
+node_modules/
+vendor/
+composer.lock
+package-lock.json
+storage/logs/
+bootstrap/cache/
+.DS_Store
+*.log
+.vscode/
+.idea/
+build/
+dist/

@@ -1,0 +1,1518 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Tsoka Vendor API",
+    "description": "Complete API for independent travel vendors. Integrate AI-powered trip planning (Tanova), intelligent chatbot concierge, and your service catalog on your own website. Each vendor gets a unique API key for multi-tenant isolation and white-label customization.",
+    "version": "2.0.0",
+    "contact": {
+      "name": "Tsoka Support",
+      "email": "developer@tsoka.travel"
+    },
+    "license": {
+      "name": "Proprietary",
+      "url": "https://tsoka.travel/license"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://portal.tsokatravel.com/api/v",
+      "description": "Production API"
+    },
+    {
+      "url": "http://127.0.0.1:8000/api/v",
+      "description": "Local Development"
+    }
+  ],
+  "security": [
+    {
+      "BearerAuth": []
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "API Key",
+        "description": "Use your vendor API key with `sk_live_` prefix. Example: `sk_live_Whc7dgqHXoLx4YJ8y4W4gTKoI9yfjUfAvQ5mnI1c`"
+      }
+    },
+    "schemas": {
+      "DailyWeather": {
+        "type": "object",
+        "properties": {
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-15"
+          },
+          "temp_min": {
+            "type": "integer",
+            "example": 12
+          },
+          "temp_max": {
+            "type": "integer",
+            "example": 27
+          },
+          "rain_prob": {
+            "type": "integer",
+            "example": 0
+          },
+          "condition": {
+            "type": "string",
+            "enum": ["sunny", "partly_cloudy", "cloudy", "foggy", "rainy", "snowy", "stormy", "unavailable"],
+            "example": "sunny"
+          },
+          "icon": {
+            "type": "string",
+            "example": "☀️"
+          }
+        }
+      },
+      "Activity": {
+        "type": "object",
+        "properties": {
+          "time": {
+            "type": "string",
+            "pattern": "^\\d{2}:\\d{2}$",
+            "example": "08:00"
+          },
+          "name": {
+            "type": "string",
+            "example": "Tour of Victoria Falls — Walking Tour"
+          },
+          "description": {
+            "type": "string",
+            "example": "Scenic walking tour with professional guide"
+          },
+          "duration": {
+            "type": "number",
+            "format": "float",
+            "example": 3.0
+          },
+          "cost": {
+            "type": "number",
+            "format": "float",
+            "example": 23.0
+          },
+          "included": {
+            "type": "boolean",
+            "example": false
+          },
+          "type": {
+            "type": "string",
+            "example": "Activity"
+          }
+        }
+      },
+      "ItineraryDay": {
+        "type": "object",
+        "properties": {
+          "day": {
+            "type": "integer",
+            "example": 1
+          },
+          "date": {
+            "type": "string",
+            "format": "date",
+            "example": "2026-06-15"
+          },
+          "title": {
+            "type": "string",
+            "example": "Day 1"
+          },
+          "weather": {
+            "$ref": "#/components/schemas/DailyWeather"
+          },
+          "activities": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Activity"
+            }
+          },
+          "accommodation": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string",
+                "enum": ["room", "apartment"]
+              }
+            }
+          },
+          "meals": {
+            "type": "object",
+            "properties": {
+              "breakfast": {
+                "type": "boolean"
+              },
+              "lunch": {
+                "type": "boolean"
+              },
+              "dinner": {
+                "type": "boolean"
+              }
+            }
+          }
+        }
+      },
+      "Trip": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 42
+          },
+          "title": {
+            "type": "string",
+            "example": "Trip to Victoria Falls — 5 days, 2 guests"
+          },
+          "destination": {
+            "type": "string",
+            "example": "Victoria Falls"
+          },
+          "dates": {
+            "type": "object",
+            "properties": {
+              "start": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-06-15"
+              },
+              "end": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-06-20"
+              },
+              "nights": {
+                "type": "integer",
+                "example": 5
+              }
+            }
+          },
+          "guests": {
+            "type": "integer",
+            "example": 2
+          },
+          "status": {
+            "type": "string",
+            "enum": ["created", "booked"],
+            "example": "created"
+          },
+          "pricing": {
+            "type": "object",
+            "properties": {
+              "estimated": {
+                "type": "number",
+                "format": "float",
+                "example": 5000.0
+              },
+              "currency": {
+                "type": "string",
+                "example": "USD"
+              }
+            }
+          },
+          "packages": {
+            "type": "integer",
+            "example": 8
+          },
+          "weather": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/DailyWeather"
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-15T10:30:00Z"
+          },
+          "links": {
+            "type": "object",
+            "properties": {
+              "self": {
+                "type": "string",
+                "example": "/api/v/tanova/trips/42"
+              },
+              "replan": {
+                "type": "string",
+                "example": "/api/v/tanova/trips/42/replan"
+              }
+            }
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "error": {
+            "type": "object",
+            "properties": {
+              "code": {
+                "type": "string",
+                "example": "trip_generation_failed"
+              },
+              "message": {
+                "type": "string",
+                "example": "Trip generation failed. Check destination and dates."
+              }
+            }
+          }
+        }
+      },
+      "ChatMessage": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 1001
+          },
+          "conversation_id": {
+            "type": "integer",
+            "example": 42
+          },
+          "role": {
+            "type": "string",
+            "enum": ["user", "assistant"],
+            "example": "user"
+          },
+          "content": {
+            "type": "string",
+            "example": "I want to plan a trip to Victoria Falls for 5 days"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-15T10:30:00Z"
+          }
+        }
+      },
+      "ChatbotConversation": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "example": 42
+          },
+          "guest_name": {
+            "type": "string",
+            "example": "John Doe"
+          },
+          "guest_email": {
+            "type": "string",
+            "format": "email",
+            "example": "john@example.com"
+          },
+          "guest_phone": {
+            "type": "string",
+            "example": "+1234567890"
+          },
+          "channel": {
+            "type": "string",
+            "enum": ["web", "whatsapp", "facebook", "telegram"],
+            "example": "web"
+          },
+          "status": {
+            "type": "string",
+            "enum": ["active", "escalated", "closed"],
+            "example": "active"
+          },
+          "current_step": {
+            "type": "string",
+            "enum": ["destination", "dates", "travelers", "budget", "confirm", "generate"],
+            "example": "dates"
+          },
+          "message_count": {
+            "type": "integer",
+            "example": 5
+          },
+          "search_data": {
+            "type": "object",
+            "description": "Parsed trip search parameters from conversation",
+            "properties": {
+              "destination": {
+                "type": "string",
+                "example": "Victoria Falls"
+              },
+              "start_date": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-06-15"
+              },
+              "end_date": {
+                "type": "string",
+                "format": "date",
+                "example": "2026-06-20"
+              },
+              "travelers": {
+                "type": "integer",
+                "example": 2
+              },
+              "budget": {
+                "type": "string",
+                "enum": ["budget", "mid-range", "luxury"],
+                "example": "mid-range"
+              }
+            }
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-15T10:00:00Z"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "example": "2026-06-15T10:30:00Z"
+          }
+        }
+      },
+      "ChatbotConfig": {
+        "type": "object",
+        "description": "White-label chatbot configuration for your website",
+        "properties": {
+          "chatbot_name": {
+            "type": "string",
+            "example": "Eva - Your Travel Assistant"
+          },
+          "welcome_message": {
+            "type": "string",
+            "example": "Hi! I'm Eva. Let's plan your next adventure. Where would you like to go?"
+          },
+          "primary_color": {
+            "type": "string",
+            "format": "color",
+            "example": "#FF6B35"
+          },
+          "secondary_color": {
+            "type": "string",
+            "format": "color",
+            "example": "#2196F3"
+          },
+          "position": {
+            "type": "string",
+            "enum": ["bottom-right", "bottom-left", "top-right", "top-left"],
+            "example": "bottom-right"
+          },
+          "widget_enabled": {
+            "type": "boolean",
+            "example": true
+          },
+          "whatsapp_enabled": {
+            "type": "boolean",
+            "example": true
+          },
+          "facebook_enabled": {
+            "type": "boolean",
+            "example": false
+          },
+          "telegram_enabled": {
+            "type": "boolean",
+            "example": false
+          }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/tanova/generate": {
+      "post": {
+        "summary": "Generate Trip Itineraries",
+        "description": "Generate 8 customized travel itinerary packages. Budget tiers: budget ($2000), mid-range ($5000), luxury ($10000).",
+        "tags": ["Tanova"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["destination", "start_date", "end_date", "guests"],
+                "properties": {
+                  "destination": {
+                    "type": "string",
+                    "example": "Victoria Falls"
+                  },
+                  "start_date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-06-15"
+                  },
+                  "end_date": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-06-20"
+                  },
+                  "guests": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 50,
+                    "example": 2
+                  },
+                  "place_id": {
+                    "type": "integer",
+                    "example": 6
+                  },
+                  "budget": {
+                    "type": "string",
+                    "enum": ["budget", "mid-range", "luxury"],
+                    "default": "mid-range"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 1000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Trip packages generated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Trip"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Trip generation failed",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tanova/trips": {
+      "get": {
+        "summary": "List Recent Trips",
+        "description": "Retrieve paginated list of recently generated trips for the authenticated vendor.",
+        "tags": ["Tanova"],
+        "parameters": [
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "maximum": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of trips",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/Trip"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing API key"
+          }
+        }
+      }
+    },
+    "/tanova/trips/{id}": {
+      "get": {
+        "summary": "Get Trip Details",
+        "description": "Retrieve full details of a specific trip including all packages and activities.",
+        "tags": ["Tanova"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 42
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Trip details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/Trip"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - trip belongs to another vendor"
+          },
+          "404": {
+            "description": "Trip not found"
+          }
+        }
+      }
+    },
+    "/tanova/trips/{id}/replan": {
+      "get": {
+        "summary": "Get Weather-Based Replan Suggestions",
+        "description": "Analyze weather changes and get Claude AI suggestions for intelligent activity swaps based on updated forecast.",
+        "tags": ["Tanova"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 42
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Replan suggestions",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "integer",
+                      "example": 1
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "has_changes": {
+                          "type": "boolean"
+                        },
+                        "changes": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        },
+                        "suggestions": {
+                          "type": "array",
+                          "items": {
+                            "type": "object"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - trip belongs to another vendor"
+          },
+          "404": {
+            "description": "Trip not found"
+          }
+        }
+      }
+    },
+    "/services/{type}": {
+      "get": {
+        "summary": "Get Your Services",
+        "description": "Retrieve all your listed services of a specific type. Only your vendor's services are returned.",
+        "tags": ["Services"],
+        "parameters": [
+          {
+            "name": "type",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": ["hotels", "tours", "spaces", "cars", "flights", "boats"]
+            },
+            "example": "hotels"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of your services",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized - invalid or missing API key"
+          }
+        }
+      }
+    },
+    "/enquiries": {
+      "post": {
+        "summary": "Submit Customer Enquiry",
+        "description": "Create a new customer enquiry for one of your services.",
+        "tags": ["Enquiries"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["service_id", "service_type", "customer_email"],
+                "properties": {
+                  "service_id": {
+                    "type": "integer",
+                    "example": 42
+                  },
+                  "service_type": {
+                    "type": "string",
+                    "enum": ["hotel", "tour", "space", "car", "flight", "boat"],
+                    "example": "hotel"
+                  },
+                  "customer_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                  },
+                  "customer_email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com"
+                  },
+                  "customer_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                  },
+                  "check_in": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-07-01"
+                  },
+                  "check_out": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-07-05"
+                  },
+                  "guests": {
+                    "type": "integer",
+                    "example": 2
+                  },
+                  "message": {
+                    "type": "string",
+                    "example": "Do you have availability?"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Enquiry created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "integer"
+                        },
+                        "status": {
+                          "type": "string"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters"
+          }
+        }
+      }
+    },
+    "/bookings": {
+      "get": {
+        "summary": "List Bookings",
+        "description": "Retrieve paginated list of customer bookings for your services. Only your vendor's bookings are returned.",
+        "tags": ["Bookings"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "confirmed", "completed", "cancelled"]
+            }
+          },
+          {
+            "name": "service_type",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["hotel", "tour", "space", "car", "flight", "boat"]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of bookings",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/bookings/{id}": {
+      "get": {
+        "summary": "Get Booking Details",
+        "description": "Retrieve full details of a specific booking.",
+        "tags": ["Bookings"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 123
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Booking details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - booking belongs to another vendor"
+          },
+          "404": {
+            "description": "Booking not found"
+          }
+        }
+      },
+      "put": {
+        "summary": "Update Booking",
+        "description": "Update booking status or details.",
+        "tags": ["Bookings"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 123
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["pending", "confirmed", "completed", "cancelled"],
+                    "example": "confirmed"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Booking updated successfully"
+          },
+          "403": {
+            "description": "Forbidden - booking belongs to another vendor"
+          }
+        }
+      }
+    },
+    "/bookings/{id}/cancel": {
+      "post": {
+        "summary": "Cancel Booking",
+        "description": "Cancel a booking and process refund.",
+        "tags": ["Bookings"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 123
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "example": "Customer requested cancellation"
+                  },
+                  "refund_percent": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "example": 100
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Booking cancelled successfully"
+          },
+          "403": {
+            "description": "Forbidden - booking belongs to another vendor"
+          }
+        }
+      }
+    },
+    "/concierge/conversations": {
+      "get": {
+        "summary": "List Conversations",
+        "description": "Retrieve all customer conversations. Only your vendor's conversations are returned. Supports filtering by status and channel.",
+        "tags": ["Concierge"],
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["active", "escalated", "closed"],
+              "example": "active"
+            }
+          },
+          {
+            "name": "channel",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["web", "whatsapp", "facebook", "telegram"]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 15,
+              "maximum": 100
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of conversations",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChatbotConversation"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "summary": "Start New Conversation",
+        "description": "Initiate a new customer conversation. Can be used by your website to create conversations programmatically.",
+        "tags": ["Concierge"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["guest_email"],
+                "properties": {
+                  "guest_name": {
+                    "type": "string",
+                    "example": "John Doe"
+                  },
+                  "guest_email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com"
+                  },
+                  "guest_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": ["web", "whatsapp", "facebook", "telegram"],
+                    "default": "web",
+                    "example": "web"
+                  },
+                  "initial_message": {
+                    "type": "string",
+                    "example": "Hi, I'd like to plan a trip"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Conversation created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChatbotConversation"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request parameters"
+          }
+        }
+      }
+    },
+    "/concierge/conversations/{id}": {
+      "get": {
+        "summary": "Get Conversation Details",
+        "description": "Retrieve full conversation including all messages and current conversation state.",
+        "tags": ["Concierge"],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 42
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "default": 1
+            },
+            "description": "Paginate through messages (50 per page)"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversation with all messages",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conversation": {
+                      "$ref": "#/components/schemas/ChatbotConversation"
+                    },
+                    "messages": {
+                      "type": "array",
+                      "items": {
+                        "$ref": "#/components/schemas/ChatMessage"
+                      }
+                    },
+                    "pagination": {
+                      "type": "object",
+                      "properties": {
+                        "current_page": {
+                          "type": "integer"
+                        },
+                        "last_page": {
+                          "type": "integer"
+                        },
+                        "total": {
+                          "type": "integer"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden - conversation belongs to another vendor"
+          },
+          "404": {
+            "description": "Conversation not found"
+          }
+        }
+      }
+    },
+    "/concierge/message": {
+      "post": {
+        "summary": "Send Chatbot Message",
+        "description": "Send a message to the AI chatbot. The bot handles multi-step conversation for trip planning: destination → dates → travelers → budget → generate itinerary. Also answers general travel questions. Rate limited: 60 messages/minute per vendor.",
+        "tags": ["Concierge"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["guest_email", "message"],
+                "properties": {
+                  "guest_email": {
+                    "type": "string",
+                    "format": "email",
+                    "example": "john@example.com",
+                    "description": "Customer email (identifies or creates conversation)"
+                  },
+                  "guest_name": {
+                    "type": "string",
+                    "example": "John Doe",
+                    "description": "Customer name (used if creating new conversation)"
+                  },
+                  "guest_phone": {
+                    "type": "string",
+                    "example": "+1234567890"
+                  },
+                  "message": {
+                    "type": "string",
+                    "example": "I want to plan a 5-day trip to Victoria Falls for 2 people with a $5000 budget",
+                    "minLength": 1,
+                    "maxLength": 2000
+                  },
+                  "channel": {
+                    "type": "string",
+                    "enum": ["web", "whatsapp", "facebook", "telegram"],
+                    "default": "web"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Chatbot response received",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "conversation_id": {
+                      "type": "integer",
+                      "example": 42
+                    },
+                    "user_message": {
+                      "$ref": "#/components/schemas/ChatMessage"
+                    },
+                    "assistant_message": {
+                      "$ref": "#/components/schemas/ChatMessage"
+                    },
+                    "next_step": {
+                      "type": "string",
+                      "description": "What the bot is waiting for next",
+                      "example": "dates",
+                      "enum": ["destination", "dates", "travelers", "budget", "confirm", "generate", "completed"]
+                    },
+                    "trip_ready": {
+                      "type": "boolean",
+                      "description": "True when bot has all info to generate trip",
+                      "example": false
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request or message too long"
+          },
+          "429": {
+            "description": "Rate limit exceeded (60 messages/min)"
+          }
+        }
+      }
+    },
+    "/concierge/conversations/{id}/messages": {
+      "post": {
+        "summary": "Send Message (Deprecated)",
+        "description": "DEPRECATED: Use /concierge/message instead. Send a message in a customer conversation.",
+        "tags": ["Concierge"],
+        "deprecated": true,
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            },
+            "example": 42
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message"],
+                "properties": {
+                  "message": {
+                    "type": "string",
+                    "example": "Thank you for your inquiry. We have availability..."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Message sent successfully"
+          },
+          "403": {
+            "description": "Forbidden - conversation belongs to another vendor"
+          }
+        }
+      }
+    },
+    "/concierge/statistics": {
+      "get": {
+        "summary": "Get Chatbot Statistics",
+        "description": "Retrieve conversation statistics and channel performance metrics.",
+        "tags": ["Concierge"],
+        "parameters": [
+          {
+            "name": "channel",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["web", "whatsapp", "facebook", "telegram"]
+            }
+          },
+          {
+            "name": "period",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["24h", "7days", "30days"],
+              "default": "7days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Conversation statistics",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total_conversations": {
+                          "type": "integer",
+                          "example": 42
+                        },
+                        "active_conversations": {
+                          "type": "integer",
+                          "example": 5
+                        },
+                        "closed_conversations": {
+                          "type": "integer",
+                          "example": 37
+                        },
+                        "total_messages": {
+                          "type": "integer",
+                          "example": 256
+                        },
+                        "by_channel": {
+                          "type": "object",
+                          "properties": {
+                            "web": {
+                              "type": "integer",
+                              "example": 30
+                            },
+                            "whatsapp": {
+                              "type": "integer",
+                              "example": 10
+                            },
+                            "facebook": {
+                              "type": "integer",
+                              "example": 2
+                            },
+                            "telegram": {
+                              "type": "integer",
+                              "example": 0
+                            }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+    "/concierge/config": {
+      "get": {
+        "summary": "Get Chatbot Configuration",
+        "description": "Retrieve your chatbot's current configuration including name, colors, enabled channels, and widget settings.",
+        "tags": ["Configuration"],
+        "responses": {
+          "200": {
+            "description": "Chatbot configuration",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChatbotConfig"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "summary": "Update Chatbot Configuration",
+        "description": "Update your chatbot's white-label settings: name, colors, position, and enabled channels.",
+        "tags": ["Configuration"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatbotConfig"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Configuration updated successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "data": {
+                      "$ref": "#/components/schemas/ChatbotConfig"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid configuration values"
+          }
+        }
+      }
+    },
+    "/concierge/widget-embed": {
+      "get": {
+        "summary": "Get Widget Embed Code",
+        "description": "Retrieve the HTML/JavaScript code to embed the chatbot widget on your website. Include your vendor API key automatically.",
+        "tags": ["Configuration"],
+        "parameters": [
+          {
+            "name": "format",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": ["script", "html", "react"],
+              "default": "script"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Widget embed code",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "string",
+                      "example": "<script src=\"https://cdn.tsoka.travel/chatbot-widget.js\" data-api-key=\"sk_live_xxxx\"></script>"
+                    },
+                    "instructions": {
+                      "type": "string",
+                      "example": "Copy and paste this code before the closing </body> tag on your website"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Tanova",
+      "description": "AI-powered trip planning engine. Generate 8 customized itineraries based on destination, dates, guests, and budget."
+    },
+    {
+      "name": "Services",
+      "description": "Your hotels, tours, spaces, and other services. List all your services to be picked by the trip planner."
+    },
+    {
+      "name": "Enquiries",
+      "description": "Customer enquiries for your services"
+    },
+    {
+      "name": "Bookings",
+      "description": "Customer bookings and transactions"
+    },
+    {
+      "name": "Concierge",
+      "description": "AI-powered chatbot for customer inquiries. Multi-step conversation for trip planning + general Q&A. Supports web, WhatsApp, Facebook, Telegram."
+    },
+    {
+      "name": "Configuration",
+      "description": "White-label chatbot customization. Set your name, colors, enabled channels. Get widget embed code for your website."
+    }
+  ]
+}

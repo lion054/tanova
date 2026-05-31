@@ -1,0 +1,11 @@
+<div class="form-group">
+    <label><?php echo e(__('Title')); ?></label>
+    <input type="text" value="<?php echo e($translation->title ?? 'New topic'); ?>" placeholder="title" name="title" class="form-control">
+</div>
+<div class="form-group">
+    <label class="control-label"><?php echo e(__('Content')); ?> </label>
+    <div class="">
+        <textarea name="content" class="d-none has-ckeditor" cols="30" rows="10"><?php echo e($translation->content); ?></textarea>
+    </div>
+</div>
+<?php /**PATH /home/lionel/Documents/Junkyard/gotrip/bc-cms/pro/Support/Views/admin/topic/form.blade.php ENDPATH**/ ?>

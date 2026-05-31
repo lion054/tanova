@@ -1,0 +1,2 @@
+<link rel="icon" type="image/png" href="<?php echo e(url('uploads/0000/6/2026/05/23/favicon2.png')); ?>" />
+<?php /**PATH /home/lionel/Documents/Junkyard/gotrip/bc-cms/modules/Layout/parts/favicon.blade.php ENDPATH**/ ?>

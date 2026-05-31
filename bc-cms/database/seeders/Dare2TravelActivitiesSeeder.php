@@ -1,0 +1,166 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\DB;
+
+class Dare2TravelActivitiesSeeder extends Seeder
+{
+    public function run(): void
+    {
+        $vendorId = 9; // sales@dare2traveladventures.com
+
+        $activities = [
+            ['id' => 'CW-001', 'activity' => 'Arrival & transfer to Mt. Meru', 'description' => 'Met at Kilimanjaro Airport (JRO) by your guide and transferred to Mt. Meru Game Lodge near Mt. Meru.', 'destination' => 'Arusha', 'category' => 4],
+            ['id' => 'CW-002', 'activity' => 'Tarangire game drive (arrival day)', 'description' => 'Drive to Tarangire NP, the greatest wildlife concentration outside the Serengeti; afternoon game drive.', 'destination' => 'Tarangire National Park', 'category' => 4],
+            ['id' => 'CW-003', 'activity' => 'Full-day Tarangire game viewing', 'description' => 'Full day exploring Tarangire; huge dry-season herds, prolific birdlife, occasional cheetah and wild dog.', 'destination' => 'Tarangire National Park', 'category' => 4],
+            ['id' => 'CW-004', 'activity' => 'Lake Manyara en route to Lake Eyasi', 'description' => 'Game and photo stops at Lake Manyara (tree-climbing lions, baboons, birdlife) en route to Eyasi.', 'destination' => 'Lake Manyara National Park', 'category' => 4],
+            ['id' => 'CW-005', 'activity' => 'Hadzabe hunter-gatherer experience', 'description' => 'Afternoon hike to meet the Hadzabe; learn their click-language, bow hunting and traditions.', 'destination' => 'Lake Eyasi', 'category' => 4],
+            ['id' => 'CW-006', 'activity' => 'Serengeti game viewing & Olduvai Gorge', 'description' => 'Olduvai Gorge stop then three nights of Serengeti game drives across the predator-rich plains and migration.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'CW-007', 'activity' => 'Maasai village & transfer to Ngorongoro', 'description' => 'Drive to the Ngorongoro Conservation Area; visit a Maasai village and overnight near the crater rim.', 'destination' => 'Ngorongoro', 'category' => 4],
+            ['id' => 'CW-008', 'activity' => 'Ngorongoro Crater descent', 'description' => 'Half-day on the crater floor; strong chance of the Big Five and dense wildlife. Optional rim hike.', 'destination' => 'Ngorongoro', 'category' => 4],
+            ['id' => 'CW-009', 'activity' => 'Transfer to West Kilimanjaro & game walk', 'description' => 'Lunch in Arusha then to Ndarakwai; afternoon game walk plus an included night game drive.', 'destination' => 'West Kilimanjaro', 'category' => 1],
+            ['id' => 'CW-010', 'activity' => 'Ndarakwai walking, boma & night drive', 'description' => 'Full day at Ndarakwai: game drive, guided walk, optional Maasai boma and colobus walk, night drive.', 'destination' => 'West Kilimanjaro', 'category' => 1],
+            ['id' => 'CW-011', 'activity' => 'Departure', 'description' => 'Breakfast then transfer to Kilimanjaro International Airport (optional Zanzibar extension).', 'destination' => 'West Kilimanjaro', 'category' => 1],
+            ['id' => 'SIG-012', 'activity' => 'Arrival & overnight Arusha', 'description' => 'Met at JRO and transferred to your hotel in Arusha.', 'destination' => 'Arusha', 'category' => 4],
+            ['id' => 'SIG-013', 'activity' => 'Materuni Waterfall, coffee & hot spring', 'description' => 'Materuni waterfall walk, Chaga cultural lunch and coffee process, then Chemka hot spring swim.', 'destination' => 'Moshi', 'category' => 4],
+            ['id' => 'SIG-014', 'activity' => 'Tarangire game drive', 'description' => 'Drive to Tarangire NP; classic acacia and baobab landscapes with large elephant herds.', 'destination' => 'Tarangire National Park', 'category' => 4],
+            ['id' => 'SIG-015', 'activity' => 'Hadzabe & Datoga cultural day', 'description' => 'Meet the Hadzabe bushmen and the Datoga blacksmiths at Lake Eyasi.', 'destination' => 'Lake Eyasi', 'category' => 4],
+            ['id' => 'SIG-016', 'activity' => 'Central Serengeti & Olduvai Gorge', 'description' => 'Drive via Olduvai Gorge into the central Serengeti, game driving to your bush camp.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'SIG-017', 'activity' => 'Northern Serengeti & Mara River', 'description' => 'Game drive to the northern Serengeti; wildebeest crossings of the Mara River in season.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'SIG-018', 'activity' => 'Return to Central Serengeti', 'description' => 'Game drive back to the central Serengeti for one night before the crater.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'SIG-019', 'activity' => 'Ngorongoro Crater descent', 'description' => 'Descend to the crater floor; resident herds, hippos and all of the Big Five possible.', 'destination' => 'Ngorongoro', 'category' => 4],
+            ['id' => 'SIG-020', 'activity' => 'Departure via Shanga & Cultural Centre', 'description' => 'Drive to Arusha; visit Shanga and the African Cultural Centre before the airport.', 'destination' => 'Arusha', 'category' => 4],
+            ['id' => 'FO-021', 'activity' => 'Arrival & overnight Arusha', 'description' => 'Met at JRO and transferred to Mt. Meru Game Lodge.', 'destination' => 'Arusha', 'category' => 4],
+            ['id' => 'FO-022', 'activity' => 'Tarangire game drive', 'description' => 'Game drive in Tarangire NP; baobabs, birdlife, occasional cheetah and wild dog.', 'destination' => 'Tarangire National Park', 'category' => 4],
+            ['id' => 'FO-023', 'activity' => 'Ngorongoro Crater descent', 'description' => 'Descend the crater walls for a game drive with a real chance of the Big Five.', 'destination' => 'Ngorongoro', 'category' => 4],
+            ['id' => 'FO-024', 'activity' => 'Serengeti game viewing & Olduvai Gorge', 'description' => 'Olduvai Gorge stop then two days of Serengeti game drives (Gol Kopjes, Seronera, Retima, Moru).', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'FO-025', 'activity' => 'Final game drive & fly out', 'description' => 'Final game viewing then drive to the airstrip to fly to Arusha or Zanzibar.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'PH-026', 'activity' => 'Arrival & overnight Arusha', 'description' => 'Met at JRO and driven to your hotel in Arusha.', 'destination' => 'Arusha', 'category' => 4],
+            ['id' => 'PH-027', 'activity' => 'Transfer & Tarangire afternoon drive', 'description' => 'Drive to Tarangire; afternoon game drive overlooking the Tarangire River Valley.', 'destination' => 'Tarangire National Park', 'category' => 4],
+            ['id' => 'PH-028', 'activity' => 'Full-day Tarangire photography', 'description' => 'Photographic game drives through varied habitats; sunset shots, raptors and big game at the river.', 'destination' => 'Tarangire National Park', 'category' => 4],
+            ['id' => 'PH-029', 'activity' => 'Tarangire to Serengeti game viewing', 'description' => 'Early drive then to the Serengeti; lions, leopards and cheetah around the Seronera valley.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'PH-030', 'activity' => 'Central to Northern Serengeti', 'description' => 'Game drive to the northern park where herds concentrate; Mara River crossings in season.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'PH-031', 'activity' => 'Northern Serengeti photography', 'description' => 'Three full days of Northern Serengeti game drives, packed breakfasts and sunset shoots.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'PH-032', 'activity' => 'Return to Central Serengeti', 'description' => 'Game drive back to the central Serengeti for one night before the crater.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'PH-033', 'activity' => 'Serengeti to Ngorongoro Crater', 'description' => 'Drive to the crater rim then descend; two days capturing peak action and resident herds.', 'destination' => 'Ngorongoro', 'category' => 4],
+            ['id' => 'PH-034', 'activity' => 'Departure via Cultural Centre', 'description' => 'Drive to Arusha; African Cultural Centre gallery then the airport.', 'destination' => 'Arusha', 'category' => 4],
+            ['id' => 'AD-035', 'activity' => 'Arrival Kilimanjaro', 'description' => 'Met at JRO and transferred to your lodge.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'AD-036', 'activity' => 'West Kilimanjaro farm & sundowner walk', 'description' => 'River walk to Simba Farm Bridge, farm tour and sundowner overlooking the Maasai plains.', 'destination' => 'West Kilimanjaro', 'category' => 1],
+            ['id' => 'AD-037', 'activity' => 'Shira Plateau day hike', 'description' => 'Day hike on the Shira Plateau with farm lunchbox and views over the Tanzanian/Kenyan plains.', 'destination' => 'West Kilimanjaro', 'category' => 1],
+            ['id' => 'AD-038', 'activity' => 'Lake Manyara game drive', 'description' => 'Game drive at Lake Manyara; tree-climbing lions, baboons and birdlife.', 'destination' => 'Lake Manyara National Park', 'category' => 4],
+            ['id' => 'AD-039', 'activity' => 'Lake Natron flamingos', 'description' => 'Drive to Lake Natron; flamingos and waterfall amid volcanic scenery.', 'destination' => 'Lake Natron', 'category' => 4],
+            ['id' => 'AD-040', 'activity' => 'Natron to Serengeti game drive', 'description' => 'Morning at the lake then game drive into the Serengeti, picnic lunch on the plains.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'AD-041', 'activity' => 'Full-day Serengeti game viewing', 'description' => 'Full day across the Serengeti, returning for sundowners.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'AD-042', 'activity' => 'Western Serengeti game drive', 'description' => 'Game drive to the western Serengeti for an overnight.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'AD-043', 'activity' => 'Western Serengeti to Lake Victoria', 'description' => 'Full-day game drive via the Grumeti River to Lake Victoria.', 'destination' => 'Lake Victoria', 'category' => 4],
+            ['id' => 'AD-044', 'activity' => 'Lake Victoria activities', 'description' => 'Boat, fishing and birding at Speke Bay on the shores of Lake Victoria.', 'destination' => 'Lake Victoria', 'category' => 4],
+            ['id' => 'AD-045', 'activity' => 'Lake Victoria boat trip & fish market', 'description' => 'Boat trip, birding and a visit to the local fish market.', 'destination' => 'Lake Victoria', 'category' => 4],
+            ['id' => 'AD-046', 'activity' => 'Lake Victoria to Ngorongoro', 'description' => 'Drive to Ngorongoro via the Serengeti plains with en-route game viewing.', 'destination' => 'Ngorongoro', 'category' => 4],
+            ['id' => 'AD-047', 'activity' => 'Ngorongoro Crater descent', 'description' => 'Descend to the crater floor; elephants, buffalo, lions and the endangered black rhino.', 'destination' => 'Ngorongoro', 'category' => 4],
+            ['id' => 'AD-048', 'activity' => 'Lake Eyasi Hadzabe & Datoga', 'description' => 'Hunt with the Hadzabe and visit the Datoga blacksmiths at Lake Eyasi.', 'destination' => 'Lake Eyasi', 'category' => 4],
+            ['id' => 'AD-049', 'activity' => 'Tarangire game drive', 'description' => 'Game drive through Tarangire; large elephant herds and rich birdlife.', 'destination' => 'Tarangire National Park', 'category' => 4],
+            ['id' => 'AD-050', 'activity' => 'Tarangire to Kilimanjaro & Shanga', 'description' => 'Drive to Arusha, visit Shanga market, then on to Kilimanjaro.', 'destination' => 'Arusha', 'category' => 4],
+            ['id' => 'AD-051', 'activity' => 'Mkomazi game drive', 'description' => 'Drive to Mkomazi NP; game drive and picnic lunch in this Northern Circuit park.', 'destination' => 'Mkomazi National Park', 'category' => 4],
+            ['id' => 'AD-052', 'activity' => 'Full-day Mkomazi (rhino & wild dog)', 'description' => 'Full day at Mkomazi; black rhino, wild dogs and abundant birdlife with Kilimanjaro views.', 'destination' => 'Mkomazi National Park', 'category' => 4],
+            ['id' => 'AD-053', 'activity' => 'Mkomazi to Lushoto highlands walk', 'description' => 'Drive to Lushoto; afternoon walk to a waterfall and forest reserve for birding.', 'destination' => 'Lushoto (Usambara)', 'category' => 4],
+            ['id' => 'AD-054', 'activity' => 'Full-day Lushoto', 'description' => 'Walks, forest and plant species or a biking tour, ending with a swim in a spring-fed lake.', 'destination' => 'Lushoto (Usambara)', 'category' => 4],
+            ['id' => 'AD-055', 'activity' => 'Lushoto to Pangani beach', 'description' => 'Drive to Ushongo Beach, Pangani; relax on the Indian Ocean shore.', 'destination' => 'Pangani', 'category' => 4],
+            ['id' => 'AD-056', 'activity' => 'Ushongo Beach fishing & relaxation', 'description' => 'Half-day deep-sea fishing with Mike, then beach relaxation; fresh catch for dinner.', 'destination' => 'Pangani', 'category' => 4],
+            ['id' => 'AD-057', 'activity' => 'Ushongo to Dar es Salaam via Saadani', 'description' => 'Drive to Dar es Salaam visiting Saadani NP, the only park with an Indian Ocean beachfront.', 'destination' => 'Saadani National Park', 'category' => 4],
+            ['id' => 'AD-058', 'activity' => 'Departure', 'description' => 'Morning at leisure then transfer to Dar es Salaam international airport.', 'destination' => 'Dar es Salaam', 'category' => 4],
+            ['id' => 'WP-059', 'activity' => 'Arrival & overnight Arusha', 'description' => 'Met at the airport and driven to your hotel; relax after the flight.', 'destination' => 'Arusha', 'category' => 4],
+            ['id' => 'WP-060', 'activity' => 'Agape women\'s project & coffee', 'description' => 'Visit the Agape women\'s project in Mulala village; coffee roasting, honey and traditional lunch.', 'destination' => 'Arusha', 'category' => 4],
+            ['id' => 'WP-061', 'activity' => 'Lake Manyara game drive', 'description' => 'Drive to Lake Manyara NP; tree-climbing lions, baboons and birdlife.', 'destination' => 'Lake Manyara National Park', 'category' => 4],
+            ['id' => 'WP-062', 'activity' => 'Maasai boma & Ngorongoro Big Five', 'description' => 'Visit a Maasai boma then Big Five search in the Ngorongoro Crater.', 'destination' => 'Ngorongoro', 'category' => 4],
+            ['id' => 'WP-063', 'activity' => 'Ngorongoro Highlands walking safari', 'description' => 'Walk near Nainokanoka village with a Maasai warrior and ranger; sunset at the caldera rim.', 'destination' => 'Ngorongoro', 'category' => 4],
+            ['id' => 'WP-064', 'activity' => 'Empakai Crater walking safari', 'description' => 'Walk via Bulati to Empakai Camp and down to Empakai Crater lake; blue monkeys and flamingos.', 'destination' => 'Ngorongoro', 'category' => 4],
+            ['id' => 'WP-065', 'activity' => 'Serengeti & all-female camp', 'description' => 'Drive into the Serengeti to Dunia Camp, the only all-female-run camp in the Serengeti.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'WP-066', 'activity' => 'Full-day Serengeti game viewing', 'description' => 'Morning Seronera River drive and brunch, then an afternoon game drive and fireside evening.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'WP-067', 'activity' => 'Central to Northern Serengeti', 'description' => 'Full day\'s drive shifting to the northern Serengeti; leopard, cheetah and Mara River sunset.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'WP-068', 'activity' => 'Northern Serengeti & migration', 'description' => 'Full day at the Mara River area watching for the wildebeest migration crossing.', 'destination' => 'Serengeti National Park', 'category' => 4],
+            ['id' => 'WP-069', 'activity' => 'Flight to Arusha & departure', 'description' => 'Optional early game drive, scenic flight from Kogatende to Arusha, last lunch at Shanga, then departure.', 'destination' => 'Arusha', 'category' => 4],
+            ['id' => 'MAR-070', 'activity' => 'Marangu Gate to Mandara Hut', 'description' => 'Through rainforest to Mandara; optional Maundi Crater side trip; colobus monkeys.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'MAR-071', 'activity' => 'Mandara Hut to Horombo Hut', 'description' => 'Ascend onto open moorland with views of Mawenzi and Kibo; giant lobelias and groundsels.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'MAR-072', 'activity' => 'Horombo Hut to Kibo Hut', 'description' => 'Cross the saddle between Kibo and Mawenzi into alpine \'moonscape\'; prepare for summit.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'MAR-073', 'activity' => 'Summit (Uhuru Peak) & down to Horombo', 'description' => 'Pre-dawn summit via Gilman\'s Point to Uhuru Peak, then descend to Horombo.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'MAR-074', 'activity' => 'Horombo Hut to Marangu Gate', 'description' => 'Descend through moorland and forest to Marangu Gate; transfer to Moshi.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'MACH-075', 'activity' => 'Machame Gate to Machame Camp', 'description' => 'Through rainforest up a ridge to Machame Camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'MACH-076', 'activity' => 'Machame Camp to Shira Camp', 'description' => 'Ascend a rocky ridge, turning west to the Shira campsite on the plateau.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'MACH-077', 'activity' => 'Shira to Lava Tower to Barranco', 'description' => 'Acclimatisation day via Lava Tower (4,650m) down to Barranco Camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'MACH-078', 'activity' => 'Barranco Wall to Barafu Camp', 'description' => 'Climb the Barranco Wall through Karanga Valley to Barafu, completing the South Circuit.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'MACH-079', 'activity' => 'Summit (Uhuru Peak) & down to Mweka', 'description' => 'Pre-dawn summit via Stella Point to Uhuru Peak, then descend to Mweka Camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'MACH-080', 'activity' => 'Mweka Camp to Mweka Gate', 'description' => 'Descend to Mweka Gate for certificates; transfer to Moshi.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM7-081', 'activity' => 'Londorossi Gate to Mti Mkubwa', 'description' => 'Drive to Londorossi, 4WD to Lemosho Glades, walk to Mti Mkubwa (Big Tree) camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM7-082', 'activity' => 'Mti Mkubwa to Shira 2 Camp', 'description' => 'Through heather moorland over the Shira Ridge to Shira 2 Camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM7-083', 'activity' => 'Shira 2 to Barranco Camp', 'description' => 'Acclimatisation via Lava Tower (Shark\'s Tooth) down to Barranco.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM7-084', 'activity' => 'Barranco Wall to Karanga Camp', 'description' => 'Climb the Barranco Wall to Karanga Valley.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM7-085', 'activity' => 'Karanga to Barafu Camp', 'description' => 'Continue to Barafu, completing the South Circuit; prepare for summit.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM7-086', 'activity' => 'Summit (Uhuru Peak) & down to Mweka', 'description' => 'Pre-dawn summit via Stella Point to Uhuru Peak, descend to Mweka Camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM7-087', 'activity' => 'Mweka Camp to Mweka Gate', 'description' => 'Descend to Mweka Gate for certificates; transfer to Moshi.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM8-088', 'activity' => 'Londorossi Gate to Mti Mkubwa', 'description' => 'Drive to Londorossi, 4WD to Lemosho Glades, walk to Mti Mkubwa camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM8-089', 'activity' => 'Mti Mkubwa to Shira 1 Camp', 'description' => 'Through heather moorland over the Shira Ridge down to Shira 1 Camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM8-090', 'activity' => 'Shira 1 to Shira 2 Camp', 'description' => 'Gentle acclimatisation hike across the Shira Plateau.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM8-091', 'activity' => 'Shira 2 to Barranco Camp', 'description' => 'Acclimatisation via Lava Tower down to Barranco.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM8-092', 'activity' => 'Barranco Wall to Karanga Camp', 'description' => 'Climb the Barranco Wall to Karanga Valley.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM8-093', 'activity' => 'Karanga to Barafu Camp', 'description' => 'Continue to Barafu, completing the South Circuit; prepare for summit.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM8-094', 'activity' => 'Summit (Uhuru Peak) & down to Mweka Hut', 'description' => 'Midnight summit via Stella Point to Uhuru Peak, descend to Mweka Hut.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'LEM8-095', 'activity' => 'Mweka Camp to Moshi', 'description' => 'Descend to Mweka Gate for certificates; transfer to Moshi.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'UMB-096', 'activity' => 'Umbwe Gate to Umbwe Cave Camp', 'description' => 'Steep climb through rainforest to Umbwe Cave (Bivouac) Camp; colobus monkeys.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'UMB-097', 'activity' => 'Umbwe Cave to Barranco Camp', 'description' => 'Ascend onto moorland with views of Kilimanjaro, descending into the Barranco Valley.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'UMB-098', 'activity' => 'Barranco Wall to Karanga Camp', 'description' => 'Climb the Barranco Wall to Karanga Valley; altitude effects begin.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'UMB-099', 'activity' => 'Karanga to Barafu Camp', 'description' => 'Continue to Barafu, completing the South Circuit; prepare for summit.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'UMB-100', 'activity' => 'Summit (Uhuru Peak) & down to Mweka', 'description' => 'Pre-dawn summit via Stella Point to Uhuru Peak, descend to Mweka Camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'UMB-101', 'activity' => 'Mweka Camp to Mweka Gate', 'description' => 'Descend to Mweka Gate for certificates; transfer to Moshi/Arusha.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON7-102', 'activity' => 'Rongai Gate to Simba Camp', 'description' => 'Through farmland and pine forest to Simba Camp at the moorland edge; Kenyan plains views.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON7-103', 'activity' => 'Simba Camp to Second Cave', 'description' => 'Steady ascent to Second Cave with views of Kibo and the eastern ice fields.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON7-104', 'activity' => 'Second Cave to Kikelewa Camp', 'description' => 'Continue towards Kibo to Kikelewa Cave; big-mountain views open up.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON7-105', 'activity' => 'Kikelewa to Mawenzi Tarn', 'description' => 'Short steep climb to Mawenzi Tarn beneath the spires of Mawenzi; acclimatisation.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON7-106', 'activity' => 'Mawenzi Tarn to Kibo Hut', 'description' => 'Cross the lunar Saddle to Kibo Hut; rest for the night summit.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON7-107', 'activity' => 'Summit (Uhuru Peak) & down to Horombo', 'description' => 'Pre-dawn summit via Gilman\'s Point to Uhuru Peak, descend to Horombo (Marangu side).', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON7-108', 'activity' => 'Horombo Hut to Marangu Gate', 'description' => 'Descend through moorland and forest to Marangu Gate; transfer to Moshi.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON6-109', 'activity' => 'Rongai Gate to 1st Caves Camp', 'description' => 'Through cornfields and pine forest, gradual ascent to 1st Caves Camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON6-110', 'activity' => '1st Caves to Kikelewa Cave', 'description' => 'Ascend past Second Cave to Kikelewa Cave; cold exposed camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON6-111', 'activity' => 'Kikelewa to Mawenzi Tarn Camp', 'description' => 'Short steep trail to Mawenzi Tarn; acclimatisation with spectacular views.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON6-112', 'activity' => 'Mawenzi Tarn to Kibo Hut', 'description' => 'Half-day hike east across the Saddle to Kibo Hut; early dinner before the night summit.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON6-113', 'activity' => 'Summit (Uhuru Peak) & down to Horombo', 'description' => 'Midnight summit via Gilman\'s Point to Uhuru Peak, descend to Horombo Hut.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'RON6-114', 'activity' => 'Horombo Hut to Marangu Gate', 'description' => 'Celebration with crew, then descend to Marangu Gate for certificates; transfer to Moshi/Arusha.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'NC-115', 'activity' => 'Arusha to Mti Mkubwa Camp', 'description' => 'Drive to the start, register, then hike through beautiful forest to Mti Mkubwa (Big Tree) camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'NC-116', 'activity' => 'Mti Mkubwa to Shira Camp', 'description' => 'Through rainforest then heather zone across the Shira ridges to Shira Camp.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'NC-117', 'activity' => 'Shira to Lava Tower / Moir Camp', 'description' => 'Hike to Moir Camp with optional Lava Tower (4,600m) acclimatisation.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'NC-118', 'activity' => 'Moir Camp to Pofu/Buffalo Camp', 'description' => 'Onto the quiet northern route; climb to ~4,400m then descend to Pofu Camp; Amboseli views.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'NC-119', 'activity' => 'Pofu Camp to Third Cave Camp', 'description' => 'Undulating traverse at similar altitude with Kibo and Mawenzi views to Third Cave.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'NC-120', 'activity' => 'Third Cave to School Hut Camp', 'description' => 'Climb to School Hut; views over the saddle and Mawenzi; prepare for midnight summit.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'NC-121', 'activity' => 'Summit (Uhuru Peak) & down to Mweka', 'description' => 'Midnight summit via Gillman\'s Point to Uhuru Peak; descend via Barafu and Millennium to Mweka.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+            ['id' => 'NC-122', 'activity' => 'Mweka Camp to Mweka Gate / Arusha', 'description' => 'Walk through rainforest to Mweka exit for certificates; drive to your Arusha lodge.', 'destination' => 'Mount Kilimanjaro', 'category' => 1],
+        ];
+
+        foreach ($activities as $data) {
+            DB::table('bc_tours')->insertOrIgnore([
+                'title' => $data['activity'],
+                'slug' => $this->createSlug($data['activity'] . ' ' . $data['destination']),
+                'short_desc' => $data['description'],
+                'category_id' => $data['category'],
+                'address' => $data['destination'],
+                'price' => 1.00,
+                'duration' => 10,
+                'status' => 'publish',
+                'author_id' => $vendorId,
+                'create_user' => $vendorId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        $this->command->info('✓ Added 122 Dare2Travel activities/experiences (69 Safari + 53 Trek)');
+    }
+
+    private function createSlug($text): string
+    {
+        $text = strtolower($text);
+        $text = preg_replace('/[^a-z0-9\s-]/', '', $text);
+        $text = preg_replace('/\s+/', '-', trim($text));
+        return preg_replace('/-+/', '-', $text);
+    }
+}
