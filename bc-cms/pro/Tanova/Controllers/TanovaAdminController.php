@@ -79,7 +79,14 @@ class TanovaAdminController extends Controller
         $result = $this->engine->generate($validated);
 
         if (!$result || empty($result['packages'])) {
-            return back()->withErrors(['engine' => 'No packages could be generated. Check tsokanew connection and activity data.']);
+            $warnings = $result['warnings'] ?? [];
+            $errorMsg = 'No packages could be generated. ';
+            if (!empty($warnings)) {
+                $errorMsg .= implode(' ', $warnings);
+            } else {
+                $errorMsg .= 'Please verify all form fields are filled correctly and activities are available for this destination.';
+            }
+            return back()->withErrors(['engine' => $errorMsg]);
         }
 
         // Use the cheapest valid package's cost as the estimated price on the record.

@@ -15,6 +15,12 @@ class PortalConciergeController extends Controller
      */
     public function index(Request $request)
     {
+        // Merged into the unified Inbox.
+        return redirect()->route('vendor.inbox.index');
+    }
+
+    public function legacyIndex(Request $request)
+    {
         $vendor = Auth::user();
 
         try {

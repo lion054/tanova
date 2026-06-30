@@ -4,7 +4,7 @@ use Illuminate\Support\Facades\Route;
 use Pro\Integrations\Controllers\IntegrationsAdminController;
 
 Route::group([
-    'prefix'     => 'user/integrations',
+    'prefix'     => 'admin/integrations',
     'middleware' => ['web', 'auth', 'verified'],
     'as'         => 'admin.integrations.',
 ], function () {

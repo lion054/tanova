@@ -36,6 +36,36 @@ function setting_item_array($item, $default = '')
     return setting_item($item, $default, true);
 }
 
+/**
+ * Resolve the current tenant (vendor) id for multi-tenant data isolation.
+ *
+ * A vendor IS a user. Owned rows store `vendor_id` = the vendor-owner's user id.
+ * Resolution order:
+ *   1. API-key context (set by ResolveVendorApiKey middleware — the API/MCP path).
+ *   2. Authenticated web/admin user: a team member carries `vendor_id` pointing to
+ *      its owner; a vendor owner has no `vendor_id`, so fall back to its own id.
+ *   3. null when no tenant can be resolved (CLI, system jobs, unauthenticated).
+ *
+ * Used by App\Traits\BelongsToVendor so isolation is automatic, not hand-rolled.
+ */
+if (!function_exists('resolve_current_vendor_id')) {
+    function resolve_current_vendor_id(): ?int
+    {
+        if (\App\Services\VendorContext::active()) {
+            return \App\Services\VendorContext::id();
+        }
+
+        if (auth()->check()) {
+            $user = auth()->user();
+            $vendorId = (int) ($user->vendor_id ?: $user->id);
+
+            return $vendorId ?: null;
+        }
+
+        return null;
+    }
+}
+
 function setting_item_with_lang($item, $locale = '', $default = '', $withOrigin = true)
 {
 

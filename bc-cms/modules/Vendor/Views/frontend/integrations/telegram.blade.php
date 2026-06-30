@@ -1,4 +1,4 @@
-@extends('vendor.layouts.app')
+@extends('layouts.user')
 
 @section('title', 'Setup Telegram Bot')
 

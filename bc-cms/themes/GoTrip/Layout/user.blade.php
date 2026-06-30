@@ -6,7 +6,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <!-- CSRF Token -->
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <link rel="icon" type="image/png" href="{{ url('uploads/0000/6/2026/05/23/favicon2.png') }}" />
+    <link rel="icon" type="image/png" href="{{ url('/images/tanova/tanova-mark-black.png') }}" />
+    <link rel="apple-touch-icon" href="{{ url('/images/tanova/tanova-mark-black.png') }}" />
     @include('Layout::parts.seo-meta')
 
     <!-- Portal Fonts -->
@@ -660,31 +661,48 @@
             color: #a0a0a0 !important;
         }
 
-        /* Hide GoTrip user footer — redundant in portal */
-        .dashboard__content .footer-under,
-        .dashboard__content footer { display: none !important; }
+        /* Keep the branded "Tanova by Tsoka" footer; hide only the legacy footer-under */
+        .dashboard__content .footer-under { display: none !important; }
 
         /* ── Fixed full-height sidebar adjustments ────────────────── */
-        /* The sidebar is now position:fixed and covers the header logo area.
-           Push the header's logo slot to be transparent / dark so there's no white flash. */
+        /* The sidebar is position:fixed and covers the header logo area. */
         .ph-logo {
-            background: #111111 !important;
+            background: #0d0d10 !important;
             border-right-color: rgba(255,255,255,.07) !important;
         }
         .ph-logo a, .ph-logo span, .ph-logo-text { color: #fff !important; }
-        /* Shift dashboard content right to clear the fixed sidebar */
+
+        /* Shift content right to clear the fixed sidebar (248px; 66px in rail mode) */
         .bc_user_profile.dashboard,
         .dashboard.bc_user_profile {
-            padding-left: 220px !important;
+            padding-left: 264px !important;
             display: block !important;
         }
-        .dashboard__main { width: 100% !important; }
+
+        /* Sticky footer — content fills the viewport, footer hugs the bottom on every page */
+        .dashboard__main {
+            width: 100% !important;
+            min-height: 100dvh !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        .dashboard__content {
+            flex: 1 0 auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+        }
+        .dashboard__content > footer.footer.-dashboard { margin-top: auto !important; }
+
         /* Ensure header toggle button doesn't overlap sidebar */
         .ph-toggle { margin-left: 8px !important; }
     </style>
+    {{-- Tanova content design kit (premium light content) --}}
+    @includeIf('vendor.partials.kit')
 </head>
 
 <body class="user-page {{ $body_class ?? '' }} @if (setting_item_with_lang('enable_rtl')) is-rtl @endif">
+    {{-- Restore collapsed icon-rail before paint (no flash) --}}
+    <script>try{if(localStorage.getItem('tnvRail')==='1')document.body.classList.add('tnv-rail');}catch(e){}</script>
     @if (!is_demo_mode())
         {!! setting_item('body_scripts') !!}
     @endif

@@ -219,9 +219,9 @@
     {{-- Logo (same width as sidebar) --}}
     <div class="ph-logo">
         <a href="{{ url('/') }}">
-            <img src="{{ url('/images/logo.png') }}" alt="Tsoka"
+            <img src="{{ url('/images/tanova/tanova-white.png') }}" alt="Tanova"
                  onerror="this.style.display='none';this.nextElementSibling.style.display='inline'">
-            <span class="ph-logo-text" style="display:none;">Tsoka</span>
+            <span class="ph-logo-text" style="display:none;">Tanova</span>
         </a>
     </div>
 
@@ -239,7 +239,9 @@
             <a href="{{ route('tourpay.vendor.index', [], false) ?? '#' }}">TourPay</a>
         @else
             <a href="{{ route('admin.integrations.hub', [], false) ?? '#' }}">Integrations</a>
-            <a href="{{ route('admin.concierge.index', [], false) ?? '#' }}">Concierge</a>
+            @if(Route::has('user.concierge.index'))
+            <a href="{{ route('user.concierge.index') }}">Concierge</a>
+            @endif
             <a href="{{ route('admin.tanova.index', [], false) ?? '#' }}">Tanova</a>
             <a href="{{ route('tourpay.vendor.index', [], false) ?? '#' }}">TourPay</a>
         @endif

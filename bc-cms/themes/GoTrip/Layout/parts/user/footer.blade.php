@@ -16,11 +16,18 @@
         font-weight: 400;
         letter-spacing: .01em;
     }
+    /* Show this branded portal footer despite the global "hide dashboard footer" rule. */
+    .dashboard__content footer.footer.-dashboard { display: block !important; }
+    .footer.-dashboard .tanova-by { display:flex; align-items:center; gap:6px; }
+    .footer.-dashboard .tanova-by img { height: 18px; width: auto; opacity: .9; }
+    .footer.-dashboard .tanova-by .by { opacity: .6; }
 </style>
 <footer class="footer -dashboard">
     <div class="footer__row">
-        <div class="text-14">
-            {!! setting_item_with_lang('footer_text_left') ?? ('&copy; ' . date('Y') . ' Tsoka Travel') !!}
+        <div class="text-14 tanova-by">
+            <img src="{{ url('/images/tanova/tanova-black.png') }}" alt="Tanova">
+            <span class="by">{{ __('by Tsoka') }}</span>
+            <span style="margin-left:10px">&copy; {{ date('Y') }}</span>
         </div>
     </div>
 </footer>

@@ -22,6 +22,18 @@ class RouterServiceProvider extends ServiceProvider
     {
         $this->mapApiRoutes();
         $this->mapVendorApiRoutes();
+        $this->mapMcpRoutes();
+    }
+
+    /**
+     * Public Tanova marketplace MCP API (/api/mcp/*).
+     * Cross-vendor discovery; transactions routed to the owning vendor.
+     */
+    protected function mapMcpRoutes()
+    {
+        Route::prefix('api')
+            ->namespace($this->moduleNamespace)
+            ->group(__DIR__ . '/Routes/api-mcp.php');
     }
 
     /**

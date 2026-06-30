@@ -16,6 +16,9 @@ class VendorApiKey extends Model
     protected $fillable = [
         'vendor_id',
         'name',
+        'type',       // 'secret' (full access) | 'publishable' (read-only, browser-safe)
+        'mode',       // 'live' | 'test' (sandbox)
+        'scopes',     // optional JSON list; null = type default
         'domain',     // nullable — the website this key is issued for
         'key',
         'key_hash',
@@ -27,6 +30,7 @@ class VendorApiKey extends Model
 
     protected $casts = [
         'active'       => 'boolean',
+        'scopes'       => 'array',
         'last_used_at' => 'datetime',
         'expires_at'   => 'datetime',
     ];
@@ -47,20 +51,53 @@ class VendorApiKey extends Model
 
     // ── Factory ──────────────────────────────────────────────────────────────
 
+    /** Prefix for a given key type + mode, e.g. pk_live_ / sk_test_. */
+    public static function prefixFor(string $type, string $mode = 'live'): string
+    {
+        $t = $type === 'publishable' ? 'pk' : 'sk';
+        $m = $mode === 'test' ? 'test' : 'live';
+        return "{$t}_{$m}_";
+    }
+
+    /** Publishable keys are read-only and safe to embed in a website's front-end. */
+    public function isPublishable(): bool
+    {
+        return $this->type === 'publishable';
+    }
+
+    /** Whether this key is allowed to perform write operations. */
+    public function canWrite(): bool
+    {
+        return !$this->isPublishable();
+    }
+
+    /** Sandbox key — no subscription required, not counted against the annual cap. */
+    public function isTest(): bool
+    {
+        return $this->mode === 'test';
+    }
+
     /**
      * Generate a new API key.
      *
+     * @param  string      $type    'secret' | 'publishable'
+     * @param  string      $mode    'live' | 'test'
      * @param  string|null $domain  e.g. "dare2travel.com" — auto-registers CORS origin
      */
-    public static function generate(User $vendor, string $name, int $rateLimit = 10000, ?string $domain = null): static
+    public static function generate(User $vendor, string $name, int $rateLimit = 10000, ?string $domain = null, string $type = 'secret', string $mode = 'live'): static
     {
-        $plain = 'sk_live_' . Str::random(40);
+        $type  = $type === 'publishable' ? 'publishable' : 'secret';
+        $mode  = $mode === 'test' ? 'test' : 'live';
+        $plain = self::prefixFor($type, $mode) . Str::random(40);
 
         $normalised = $domain ? self::normaliseDomain($domain) : null;
 
         $model = static::create([
             'vendor_id'  => $vendor->id,
             'name'       => $name,
+            'type'       => $type,
+            'mode'       => $mode,
+            'scopes'     => $type === 'publishable' ? ['*:read'] : null,
             'domain'     => $normalised,
             'key'        => null,
             'key_hash'   => hash_hmac('sha256', $plain, config('app.key')),
@@ -102,6 +139,11 @@ class VendorApiKey extends Model
 
         if ($this->expires_at && $this->expires_at->isPast()) {
             return false;
+        }
+
+        // Test (sandbox) keys are never capped.
+        if ($this->isTest()) {
+            return true;
         }
 
         // rate_limit = 0 means unlimited
@@ -153,7 +195,8 @@ class VendorApiKey extends Model
 
     public function rotate(): string
     {
-        $plain = 'sk_live_' . Str::random(40);
+        // Keep the same key type + mode/prefix when rotating.
+        $plain = self::prefixFor($this->type ?? 'secret', $this->mode ?? 'live') . Str::random(40);
 
         $this->update([
             'key'      => null,

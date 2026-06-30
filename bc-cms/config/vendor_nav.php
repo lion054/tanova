@@ -1,56 +1,65 @@
 <?php
 
 /**
- * Vendor sidebar navigation structure.
+ * Vendor sidebar navigation structure (Tanova portal).
  *
- * sections: ordered list of sections, each with a label and the menu
- *   keys that belong to it. Keys match what each module's getUserMenu()
- *   returns as array keys.
+ * sections: ordered list of groups, each with a label and the menu keys that
+ *   belong to it. Keys match what each module's getUserMenu() returns. Missing
+ *   keys are skipped automatically.
  *
- * gated: maps a menu key to the plan post_type that must be enabled
- *   in the vendor's active subscription plan. Items whose gate fails
- *   are rendered muted with a lock inside an "upgrade" block.
+ * Rendering (themes/GoTrip/User/.../sidebar.blade.php):
+ *   - 'overview'  renders flush at the top (no collapsible header).
+ *   - working groups render as collapsible accordions (one open at a time;
+ *     the group containing the active item opens by default).
+ *   - 'settings'  is pinned at the bottom as a collapsible group.
+ *
+ * gated: maps a menu key → plan post_type that must be enabled. Gated items the
+ *   vendor can't access yet render muted in an "upgrade" block.
  */
 return [
 
     'sections' => [
         'overview' => [
             'label' => 'Overview',
-            'keys'  => ['dashboard'],
+            'keys'  => ['dashboard', 'today'],
         ],
         'bookings' => [
             'label' => 'Bookings',
-            'keys'  => ['vendor-bookings', 'booking-history'],
+            'keys'  => ['vendor-bookings', 'checkin', 'waitlist', 'booking-history', 'enquiry'],
         ],
-        'operations' => [
-            'label' => 'Operations',
-            // hotel always includes space as a child; car includes boat as a child
-            'keys'  => ['hotel', 'space', 'car', 'boat', 'tour', 'flight', 'event', 'visa'],
+        'catalog' => [
+            'label'  => 'Catalog',
+            // Nested sub-groups so an expanded Catalog stays short and scannable.
+            'groups' => [
+                'stays'      => ['label' => 'Stays', 'keys' => ['hotel', 'space']],
+                'activities' => ['label' => 'Activities', 'keys' => ['tour', 'event']],
+                'transport'  => ['label' => 'Transport', 'keys' => ['car', 'boat', 'flight']],
+                'access'     => ['label' => 'Access', 'keys' => ['visa']],
+                'pricing'    => ['label' => 'Pricing & Add-ons', 'keys' => ['pricing_tiers', 'upsells']],
+            ],
         ],
-        'marketing' => [
-            'label' => 'Marketing',
-            'keys'  => ['coupon', 'news'],
+        'tanova' => [
+            'label' => 'Tanova',
+            'keys'  => ['marketplace', 'inbox'],
         ],
-        'reports' => [
-            'label' => 'Reports',
-            'keys'  => ['booking_report', 'enquiry'],
+        'engage' => [
+            'label' => 'Engage',
+            'keys'  => ['loyalty', 'scheduled_messages', 'occasions', 'campaigns', 'coupon', 'news'],
+        ],
+        'insights' => [
+            'label' => 'Insights',
+            'keys'  => ['analytics', 'booking_report', 'tracking'],
         ],
         'finance' => [
             'label' => 'Finance',
             'keys'  => ['wallet', 'payout', 'tourpay'],
         ],
-        'account' => [
-            'label' => 'Account',
-            'keys'  => ['subscription', 'verification', '2fa', 'team', 'chat'],
+        'settings' => [
+            'label' => 'Settings',
+            'keys'  => ['go_live', 'subscription', 'api_keys', 'team', 'integrations', 'verification', '2fa', 'help'],
         ],
     ],
 
-    /**
-     * Gate map: menu key → plan post_type.
-     * A vendor must have this post_type enabled in their plan to access
-     * the module. Items without a gate entry are always shown (if permission
-     * is satisfied).
-     */
     'gated' => [],
 
 ];

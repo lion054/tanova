@@ -1,73 +1,61 @@
 @extends('layouts.user')
 @section('content')
-    <div class="row y-gap-20 justify-between items-end pb-60 lg:pb-40 md:pb-32">
-        <div class="col-auto">
-            <h1 class="text-30 lh-14 fw-600">{{ __("Manage Coupon") }}</h1>
-            <div class="text-15 text-light-1">{{ __("Smart promotions, AI-timed. Offers that convert browsers into bookers.") }}</div>
+@php($cPill = fn($s) => $s==='publish' ? 'tnv-b--pos' : ($s==='pending' ? 'tnv-b--gold' : 'tnv-b--neutral'))
+<div class="tnv-page">
+
+    <div class="tnv-ph">
+        <div>
+            <div class="tnv-ph__crumb">{{ __('Marketing') }}</div>
+            <h1 class="tnv-ph__title">{{ __('Manage Coupons') }}</h1>
+            <div class="tnv-ph__sub">{{ __('Smart promotions, AI-timed. Offers that convert browsers into bookers.') }}</div>
         </div>
-        <div class="col-auto">
-            @if(Auth::user()->hasPermission('coupon_create') && empty($recovery))
-                <a href="{{ route("coupon.vendor.create") }}" class="button h-50 px-24 -dark-1 bg-blue-1 text-white">{{__("Add Coupon")}} <div class="icon-arrow-top-right ml-15"></div></a>
+        @if(Auth::user()->hasPermission('coupon_create') && empty($recovery))
+        <div class="tnv-ph__actions">
+            <a href="{{ route('coupon.vendor.create') }}" class="tnv-btn tnv-btn--gold"><i class="icofont-plus"></i> {{ __('Add Coupon') }}</a>
+        </div>
+        @endif
+    </div>
+
+    @include('admin.message')
+
+    <div class="tnv-c">
+        <div class="tnv-c__h"><h3>{{ __('Coupons') }}</h3><span class="tnv-b tnv-b--neutral">{{ $rows->total() }}</span></div>
+        <div class="tnv-c__b tnv-c__b--flush">
+            @if($rows->total() > 0)
+                <div style="overflow-x:auto">
+                <table class="tnv-tbl">
+                    <thead><tr><th>{{ __('Code') }}</th><th>{{ __('Name') }}</th><th>{{ __('Amount') }}</th><th>{{ __('Discount Type') }}</th><th>{{ __('End Date') }}</th><th>{{ __('Status') }}</th><th class="right">{{ __('Action') }}</th></tr></thead>
+                    <tbody>
+                        @foreach($rows as $row)
+                            <tr>
+                                <td><strong>{{ $row->code }}</strong></td>
+                                <td>{{ $row->name }}</td>
+                                <td class="num">{{ $row->amount }}</td>
+                                <td>{{ $row->discount_type == 'percent' ? __('Percent') : __('Amount') }}</td>
+                                <td class="tnv-muted">{{ $row->end_date }}</td>
+                                <td><span class="tnv-b {{ $cPill($row->status) }}">{{ ucfirst($row->status) }}</span></td>
+                                <td class="right" style="white-space:nowrap">
+                                    <a href="{{ route('coupon.vendor.edit',['id'=>$row->id]) }}" class="tnv-btn tnv-btn--ghost tnv-btn--sm">{{ __('Edit') }}</a>
+                                    <a href="{{ route('coupon.vendor.delete',['id'=>$row->id]) }}" class="tnv-btn tnv-btn--danger tnv-btn--sm">{{ __('Delete') }}</a>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+                </div>
+                <div style="padding:14px 20px">{{ $rows->appends(request()->query())->links() }}</div>
+            @else
+                <div class="tnv-empty">
+                    <div class="tnv-empty__ic"><i class="icofont-sale-discount"></i></div>
+                    <div class="tnv-empty__t">{{ __('No coupons yet') }}</div>
+                    <div class="tnv-empty__s">{{ __('Create a promotion to boost conversions.') }}</div>
+                    @if(Auth::user()->hasPermission('coupon_create') && empty($recovery))
+                        <div style="margin-top:14px"><a href="{{ route('coupon.vendor.create') }}" class="tnv-btn tnv-btn--gold"><i class="icofont-plus"></i> {{ __('Add Coupon') }}</a></div>
+                    @endif
+                </div>
             @endif
         </div>
     </div>
-    @include('admin.message')
 
-    <div class="py-30 px-30 rounded-4 bg-white shadow-3">
-        <div class="row">
-            <div class="col-md-12">
-                <div class="panel">
-                    <div class="panel-body">
-                        <form action="" class="bc-form-item">
-                            <div class="table-responsive">
-                                <table class="table table-hover">
-                                    <thead>
-                                        <tr>
-                                            <th> {{ __('Code')}}</th>
-                                            <th> {{ __('Name')}}</th>
-                                            <th> {{ __('Amount')}}</th>
-                                            <th> {{ __('Discount Type')}}</th>
-                                            <th> {{ __('End Date')}}</th>
-                                            <th width="70px"> {{ __('Status')}}</th>
-                                            <th width="200px"> {{ __("Action") }}</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        @if($rows->total() > 0)
-                                            @foreach($rows as $row)
-                                                <tr class="{{$row->status}}">
-                                                    <td class="title">
-                                                        <strong>{{$row->code}}</strong>
-                                                    </td>
-                                                    <td>{{$row->name}}</td>
-                                                    <td>{{$row->amount}}</td>
-                                                    <td>{{$row->discount_type == 'percent' ? __("Percent") : __("Amount")}}</td>
-                                                    <td>{{ ($row->end_date) }}</td>
-                                                    <td><span class="badge badge-{{ $row->status }}">{{ $row->status }}</span></td>
-                                                    <td>
-                                                        <div class="d-flex">
-                                                            <a href="{{route('coupon.vendor.edit',['id'=>$row->id])}}" class="btn btn-sm btn-primary btn-info-booking mt-1 mr-1">{{__('Edit')}}</a>
-                                                            <a href="{{route('coupon.vendor.delete',['id'=>$row->id])}}" class="btn btn-sm btn-secondary btn-info-booking mt-1">{{__('Delete')}}</a>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            @endforeach
-                                        @else
-                                            <tr>
-                                                <td colspan="6">{{__("No data")}}</td>
-                                            </tr>
-                                        @endif
-                                    </tbody>
-                                </table>
-                            </div>
-                        </form>
-                        <div class="bc-pagination">
-                            <span class="count-string mb-2">{{ __("Showing :from - :to of :total coupon",["from"=>$rows->firstItem(),"to"=>$rows->lastItem(),"total"=>$rows->total()]) }}</span>
-                            {{$rows->appends(request()->query())->links()}}
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+</div>
 @endsection

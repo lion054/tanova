@@ -3,6 +3,7 @@
 namespace Pro\Tanova\Models;
 
 use App\BaseModel;
+use App\Traits\BelongsToVendor;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Modules\Booking\Models\Booking;
 use App\User;
@@ -10,6 +11,7 @@ use App\User;
 class TanovaTrip extends BaseModel
 {
     use SoftDeletes;
+    use BelongsToVendor;
 
     protected $table = 'bc_tanova_trips';
 
@@ -53,6 +55,7 @@ class TanovaTrip extends BaseModel
         'title', 'destination', 'start_date', 'end_date',
         'guests', 'trip_type', 'itinerary', 'daily_weather', 'estimated_price', 'currency',
         'status', 'booking_id', 'booked_package', 'prompt',
+        'source', 'session_token',
         'create_user', 'update_user',
     ];
 

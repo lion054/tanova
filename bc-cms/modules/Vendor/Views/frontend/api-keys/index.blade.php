@@ -63,6 +63,7 @@
                     <thead class="table-light">
                         <tr>
                             <th>{{ __('Name') }}</th>
+                            <th>{{ __('Type') }}</th>
                             <th>{{ __('Domain') }}</th>
                             <th>{{ __('Status') }}</th>
                             <th>{{ __('Annual usage') }}</th>
@@ -75,6 +76,15 @@
                         @php $pct = $key->rate_limit > 0 ? round($key->annualUsageCount() / $key->rate_limit * 100) : 0; @endphp
                         <tr>
                             <td><strong>{{ $key->name }}</strong></td>
+                            <td>
+                                @if($key->isPublishable())
+                                    <span class="badge bg-info-subtle text-info-emphasis">{{ __('Publishable') }}</span>
+                                    <div class="small text-muted"><code>pk_live_…</code></div>
+                                @else
+                                    <span class="badge bg-warning-subtle text-warning-emphasis">{{ __('Secret') }}</span>
+                                    <div class="small text-muted"><code>sk_live_…</code></div>
+                                @endif
+                            </td>
                             <td>
                                 @if($key->domain)
                                     <code>{{ $key->domain }}</code>
@@ -115,7 +125,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="text-center text-muted py-4">
+                            <td colspan="7" class="text-center text-muted py-4">
                                 {{ __('No API keys yet. Generate one to start integrating your website.') }}
                             </td>
                         </tr>
@@ -134,12 +144,123 @@
                         <strong>{{ __('Note:') }}</strong> {{ __('All API requests return only YOUR data. You cannot access other vendors\' data.') }}
                     </div>
 
+                    {{-- Base URL --}}
+                    <div class="card mb-4">
+                        <div class="card-header fw-semibold">{{ __('Base URL') }}</div>
+                        <div class="card-body">
+                            <pre class="bg-light p-2 rounded border mb-0">{{ rtrim(config('app.url'),'/') }}/api/v</pre>
+                        </div>
+                    </div>
+
                     {{-- Authentication --}}
                     <div class="card mb-4">
                         <div class="card-header fw-semibold">{{ __('Authentication') }}</div>
                         <div class="card-body">
-                            <p class="mb-2">{{ __('Include your API key in every request:') }}</p>
-                            <pre class="bg-light p-2 rounded border">Authorization: Bearer YOUR_API_KEY</pre>
+                            <p class="mb-2">{{ __('Include your API key as a Bearer token in every request:') }}</p>
+                            <pre class="bg-light p-2 rounded border mb-3">Authorization: Bearer YOUR_API_KEY</pre>
+
+                            <p class="mb-2 fw-semibold">{{ __('Two key types') }}</p>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered align-middle mb-2">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>{{ __('Key') }}</th>
+                                            <th>{{ __('Access') }}</th>
+                                            <th>{{ __('Use it in') }}</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td><code>pk_live_…</code><br><span class="badge bg-info-subtle text-info-emphasis">{{ __('Publishable') }}</span></td>
+                                            <td>{{ __('Read-only — services, availability, start a booking') }}</td>
+                                            <td>{{ __('Your website front-end (browser). Safe to expose. Locked to your domain via CORS.') }}</td>
+                                        </tr>
+                                        <tr>
+                                            <td><code>sk_live_…</code><br><span class="badge bg-warning-subtle text-warning-emphasis">{{ __('Secret') }}</span></td>
+                                            <td>{{ __('Full read + write — create/confirm bookings, manage services') }}</td>
+                                            <td>{{ __('Your server only. Never put this in browser code.') }}</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <p class="small text-muted mb-0">
+                                <i class="fa fa-shield-alt me-1"></i>{{ __('A publishable key used for a write request returns 403 read_only_key. Generate a secret key for server-side actions.') }}
+                            </p>
+                        </div>
+                    </div>
+
+                    {{-- JavaScript SDK + headless starter --}}
+                    <div class="card mb-4 border-primary-subtle">
+                        <div class="card-header fw-semibold"><i class="fa fa-code me-2"></i>{{ __('JavaScript SDK (build your website fast)') }}</div>
+                        <div class="card-body">
+                            <p class="text-muted mb-3">{{ __('Drop the SDK into your site and call the API with a publishable key — no backend required for reads.') }}</p>
+                            <pre class="bg-light p-2 rounded border mb-3" style="font-size:.85rem">&lt;script src="{{ rtrim(config('app.url'),'/') }}/sdk/tsoka.js"&gt;&lt;/script&gt;
+&lt;script&gt;
+  const tsoka = Tsoka({ key: 'pk_live_your_publishable_key' });
+
+  // List your tours
+  tsoka.services.list('tours', { per_page: 24 })
+    .then(res =&gt; console.log(res.data));
+
+  // Check availability
+  tsoka.services.availability('tours', 42, { date: '2026-07-01' })
+    .then(console.log);
+&lt;/script&gt;</pre>
+                            <p class="mb-0">
+                                <a class="btn btn-sm btn-outline-primary" href="{{ rtrim(config('app.url'),'/') }}/sdk/tsoka.js" target="_blank"><i class="fa fa-download me-1"></i>{{ __('Get tsoka.js') }}</a>
+                                <a class="btn btn-sm btn-outline-secondary" href="{{ rtrim(config('app.url'),'/') }}/sdk/example.html" target="_blank"><i class="fa fa-window-maximize me-1"></i>{{ __('Open headless starter') }}</a>
+                            </p>
+                        </div>
+                    </div>
+
+                    {{-- Test mode --}}
+                    <div class="card mb-4">
+                        <div class="card-header fw-semibold">{{ __('Test mode (sandbox)') }}</div>
+                        <div class="card-body">
+                            <p class="text-muted mb-2">{{ __('Generate a Test-mode key to build and experiment safely:') }}</p>
+                            <ul class="small mb-2">
+                                <li>{{ __('Keys look like') }} <code>pk_test_…</code> / <code>sk_test_…</code></li>
+                                <li>{{ __('No active subscription required') }}</li>
+                                <li>{{ __('Not counted against your annual request limit') }}</li>
+                                <li>{{ __('Responses include') }} <code>X-Tsoka-Mode: test</code></li>
+                            </ul>
+                            <p class="small text-muted mb-0">{{ __('Switch to a Live key when you go to production.') }}</p>
+                        </div>
+                    </div>
+
+                    {{-- Versioning --}}
+                    <div class="card mb-4">
+                        <div class="card-header fw-semibold">{{ __('Versioning') }}</div>
+                        <div class="card-body">
+                            <p class="mb-2">{{ __('The current API version is') }} <code>{{ \App\Http\Middleware\ApiVersion::CURRENT }}</code>. {{ __('Pin a version to stay stable across changes:') }}</p>
+                            <pre class="bg-light p-2 rounded border mb-2">Tsoka-Version: {{ \App\Http\Middleware\ApiVersion::CURRENT }}</pre>
+                            <p class="small text-muted mb-0">{{ __('Every response echoes the resolved version in the') }} <code>X-Tsoka-Version</code> {{ __('header.') }}</p>
+                        </div>
+                    </div>
+
+                    {{-- Idempotency --}}
+                    <div class="card mb-4">
+                        <div class="card-header fw-semibold">{{ __('Idempotent writes') }}</div>
+                        <div class="card-body">
+                            <p class="mb-2">{{ __('Send an') }} <code>Idempotency-Key</code> {{ __('on writes (e.g. creating a booking) so a retry never creates a duplicate. The first response is replayed for any repeat with the same key.') }}</p>
+                            <pre class="bg-light p-2 rounded border mb-0" style="font-size:.85rem">curl -X POST '{{ rtrim(config('app.url'),'/') }}/api/v/bookings' \
+  -H 'Authorization: Bearer sk_live_YOUR_SECRET_KEY' \
+  -H 'Idempotency-Key: 7c1f0e9a-booking-001' \
+  -H 'Content-Type: application/json' \
+  -d '{ ... }'</pre>
+                        </div>
+                    </div>
+
+                    {{-- Rate limit + caching headers --}}
+                    <div class="card mb-4">
+                        <div class="card-header fw-semibold">{{ __('Rate limits & caching') }}</div>
+                        <div class="card-body">
+                            <p class="mb-2">{{ __('Responses include standard headers so you can self-throttle and cache:') }}</p>
+                            <ul class="small mb-0">
+                                <li><code>X-RateLimit-Limit</code>, <code>X-RateLimit-Remaining</code>, <code>X-RateLimit-Reset</code></li>
+                                <li><code>ETag</code> {{ __('on GETs — send it back as') }} <code>If-None-Match</code> {{ __('to get a fast') }} <code>304 Not Modified</code></li>
+                                <li><code>Cache-Control: private, max-age=30</code></li>
+                            </ul>
                         </div>
                     </div>
 
@@ -524,6 +645,35 @@ GET /api/v/payouts</pre>
                         <label class="form-label">{{ __('Key name') }} <span class="text-danger">*</span></label>
                         <input type="text" name="name" class="form-control" placeholder="{{ __('e.g. dare2travel website') }}" required maxlength="100">
                         <small class="text-muted">{{ __('A label so you remember what this key is for.') }}</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ __('Key type') }} <span class="text-danger">*</span></label>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="type" id="type-publishable" value="publishable" checked>
+                            <label class="form-check-label" for="type-publishable">
+                                <strong>{{ __('Publishable') }}</strong> <code>pk_live_…</code>
+                                <span class="badge bg-info-subtle text-info-emphasis ms-1">{{ __('read-only') }}</span><br>
+                                <small class="text-muted">{{ __('Safe to use in your website\'s front-end (browser). Can read services, availability & start bookings, but cannot make changes.') }}</small>
+                            </label>
+                        </div>
+                        <div class="form-check mt-2">
+                            <input class="form-check-input" type="radio" name="type" id="type-secret" value="secret">
+                            <label class="form-check-label" for="type-secret">
+                                <strong>{{ __('Secret') }}</strong> <code>sk_live_…</code>
+                                <span class="badge bg-warning-subtle text-warning-emphasis ms-1">{{ __('full access') }}</span><br>
+                                <small class="text-muted">{{ __('Full read + write access. Use ONLY on your server — never expose it in browser/front-end code.') }}</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">{{ __('Mode') }}</label>
+                        <div class="btn-group w-100" role="group">
+                            <input type="radio" class="btn-check" name="mode" id="mode-live" value="live" checked>
+                            <label class="btn btn-outline-success" for="mode-live"><i class="fa fa-circle-dot me-1"></i>{{ __('Live') }}</label>
+                            <input type="radio" class="btn-check" name="mode" id="mode-test" value="test">
+                            <label class="btn btn-outline-secondary" for="mode-test"><i class="fa fa-flask me-1"></i>{{ __('Test (sandbox)') }}</label>
+                        </div>
+                        <small class="text-muted d-block mt-1">{{ __('Test keys (…_test_…) work without a subscription and don\'t count against your limits — perfect for building before going live.') }}</small>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">{{ __('Website domain') }}</label>

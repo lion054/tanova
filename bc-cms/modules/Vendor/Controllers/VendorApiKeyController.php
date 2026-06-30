@@ -38,6 +38,8 @@ class VendorApiKeyController extends Controller
     {
         $request->validate([
             'name'       => 'required|string|max:100',
+            'type'       => 'nullable|in:secret,publishable', // publishable = read-only, browser-safe
+            'mode'       => 'nullable|in:live,test',          // test = sandbox key
             'domain'     => 'nullable|string|max:255',   // website domain — auto-registers CORS
             'rate_limit' => 'nullable|integer|min:0|max:10000000',
         ]);
@@ -47,6 +49,8 @@ class VendorApiKeyController extends Controller
             $request->input('name'),
             $request->integer('rate_limit', 10000),
             $request->input('domain'),
+            $request->input('type', 'secret'),
+            $request->input('mode', 'live'),
         );
 
         return response()->json([

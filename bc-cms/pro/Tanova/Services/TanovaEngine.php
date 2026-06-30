@@ -213,9 +213,12 @@ class TanovaEngine
                 if ($pkg === null) continue;
                 $acco      = $this->generateAccommodation($locationId, $days, $guests, $stayType, $pkg['activity_cost'], $vendorId);
                 $totalCost = $pkg['activity_cost'] + $acco['cost'];
-                $validPackages[] = $this->buildPackageResult(
-                    $fb, $pkg, $acco, $totalCost, $guests, $startStr, $days
-                );
+                // Still enforce budget even in fallback — respect user's budget ceiling
+                if ($totalCost <= $maxBudget) {
+                    $validPackages[] = $this->buildPackageResult(
+                        $fb, $pkg, $acco, $totalCost, $guests, $startStr, $days
+                    );
+                }
             }
         }
 
@@ -227,9 +230,20 @@ class TanovaEngine
         // Merge built packages with AI-generated ones
         $allPackages = array_merge($validPackages, $builtPackages);
 
+        // Filter packages to respect budget constraint
+        $budgetCompliantPackages = array_filter($allPackages, fn($pkg) =>
+            ($pkg['pricing']['estimated'] ?? 0) <= $maxBudget
+        );
+
+        // Calculate minimum budget needed if no compliant packages
+        $minBudgetNeeded = null;
+        if (empty($budgetCompliantPackages) && !empty($allPackages)) {
+            $minBudgetNeeded = min(array_map(fn($pkg) => $pkg['pricing']['estimated'] ?? 0, $allPackages));
+        }
+
         // Re-index package numbers for merged results
         $finalPackages = [];
-        foreach ($allPackages as $idx => $pkg) {
+        foreach ($budgetCompliantPackages as $idx => $pkg) {
             $pkg['package'] = $idx + 1;
             $finalPackages[] = $pkg;
         }
@@ -240,6 +254,22 @@ class TanovaEngine
             fn($w) => ($w['rain_prob'] ?? 0) > 60
         ));
 
+        // Check if accommodations exist for this location
+        $accoCount = DB::table('bc_tanova_accommodations')
+            ->where('location_id', $locationId)
+            ->where('status', 'publish')
+            ->count();
+
+        $warnings = [];
+        if ($accoCount === 0 && $days > 1) {
+            $warnings[] = "No accommodations configured for {$placeName}. Please add hotel/lodge options to improve trip proposals.";
+        }
+
+        // Warn if budget is too low
+        if ($minBudgetNeeded && empty($finalPackages)) {
+            $warnings[] = "Your budget of \${$budget} is too low. Minimum budget needed: \${$minBudgetNeeded}. Please increase your budget and try again.";
+        }
+
         return [
             'destination'   => $placeName,
             'place_name'    => $placeName,
@@ -249,6 +279,7 @@ class TanovaEngine
             'rainy_days'    => array_values($rainyDays),
             'daily_weather' => $dailyWeather,
             'packages'      => $finalPackages,
+            'warnings'      => $warnings,
         ];
     }
 
@@ -974,6 +1005,7 @@ class TanovaEngine
 
             // Add day title and description from stored itinerary
             if (!empty($dayData['title']) || !empty($dayData['desc'])) {
+                $imageId = $dayData['image_id'] ?? null;
                 $activities[] = [
                     'time' => '09:00',
                     'name' => $dayData['title'] ?? "Day {$dayNum}",
@@ -981,7 +1013,7 @@ class TanovaEngine
                     'duration' => 8.0,
                     'cost' => 0,
                     'included' => true,
-                    'image' => $dayData['image_id'] ? asset('uploads/...' . $dayData['image_id']) : null,
+                    'image' => $imageId ? asset('uploads/...' . $imageId) : null,
                     'type' => 'Activity',
                 ];
             }

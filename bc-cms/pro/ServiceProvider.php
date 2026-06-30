@@ -21,6 +21,6 @@ class ServiceProvider extends \Illuminate\Support\ServiceProvider
 
     public static function getModules()
     {
-        return ['support', 'booking', 'ai', 'tanova', 'concierge', 'integrations'];
+        return ['support', 'booking', 'ai', 'tanova', 'integrations'];
     }
 }

@@ -71,20 +71,33 @@ class TanovaApiController extends Controller
             'luxury' => 10000,
         ];
 
-        // Use Tanova Engine to generate from real database data
-        $generated = $this->engine->generate([
-            'location_id' => $validated['place_id'] ?? 6, // Default to Victoria Falls
-            'start_date' => $validated['start_date'],
-            'end_date' => $validated['end_date'],
-            'guests' => $validated['guests'],
-            'budget' => $budgetMap[$validated['budget'] ?? 'mid-range'],
-            'stay_type' => null,
-            'vendor_id' => VendorContext::id(),
-        ]);
+        try {
+            // Use Tanova Engine to generate from real database data
+            $generated = $this->engine->generate([
+                'location_id' => $validated['place_id'] ?? 6, // Default to Victoria Falls
+                'start_date' => $validated['start_date'],
+                'end_date' => $validated['end_date'],
+                'guests' => $validated['guests'],
+                'budget' => $budgetMap[$validated['budget'] ?? 'mid-range'],
+                'stay_type' => null,
+                'vendor_id' => VendorContext::id(),
+            ]);
+        } catch (\Exception $e) {
+            \Log::warning("Tanova generation error: " . $e->getMessage());
+            return response()->json([
+                'error' => [
+                    'code' => 'trip_generation_failed',
+                    'message' => 'Trip generation encountered an issue. Accommodations may be missing for this destination.',
+                    'details' => $e->getMessage(),
+                ],
+                'warning' => 'Please add accommodations for this location to enable full trip generation.',
+            ], 500);
+        }
 
         if (!$generated) {
             return response()->json([
                 'error' => ['code' => 'trip_generation_failed', 'message' => 'Trip generation failed. Check destination and dates.'],
+                'warning' => 'No valid packages could be generated. Accommodations may be missing for this destination.',
             ], 500);
         }
 

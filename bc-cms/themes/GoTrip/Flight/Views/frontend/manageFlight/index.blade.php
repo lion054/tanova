@@ -1,38 +1,48 @@
 @extends('layouts.user')
 @section('content')
-    <div class="row y-gap-20 justify-between items-end pb-60 lg:pb-40 md:pb-32">
-        <div class="col-auto">
-            <h1 class="text-30 lh-14 fw-600">{{!empty($recovery) ?__('Recovery Flights') : __("Manage Flights")}}</h1>
-            <div class="text-15 text-light-1">{{ __('AI-native airline operations. Seat inventory, fares, ancillaries, and distribution.') }}</div>
+<div class="tnv-page">
+
+    <div class="tnv-ph">
+        <div>
+            <div class="tnv-ph__crumb">{{ __('Catalog') }} &middot; {{ __('Transport') }}</div>
+            <h1 class="tnv-ph__title">{{ !empty($recovery) ? __('Recovery Flights') : __('Manage Flights') }}</h1>
+            <div class="tnv-ph__sub">{{ __('AI-native airline operations. Seat inventory, fares, ancillaries, and distribution.') }}</div>
         </div>
-        <div class="col-auto">
-            @if(Auth::user()->hasPermission('flight_create')&& empty($recovery))
-                <a href="{{ route("flight.vendor.create") }}" class="button h-50 px-24 -dark-1 bg-blue-1 text-white">
-                    {{__("Add Flight")}} <div class="icon-arrow-top-right ml-15"></div>
-                </a>
-            @endif
+        @if(Auth::user()->hasPermission('flight_create') && empty($recovery))
+        <div class="tnv-ph__actions">
+            <a href="{{ route('flight.vendor.create') }}" class="tnv-btn tnv-btn--gold"><i class="icofont-plus"></i> {{ __('Add Flight') }}</a>
         </div>
+        @endif
     </div>
+
     @include('admin.message')
+
     @if($rows->total() > 0)
-        <div class="bc-list-item py-30 px-30 rounded-4 bg-white shadow-3">
-            <div class="list-item mt-0">
-                <div class="row">
-                    @foreach($rows as $row)
-                        <div class="col-md-12">
-                            @include('Flight::frontend.manageFlight.loop-list')
-                        </div>
-                    @endforeach
+        <div class="tnv-c">
+            <div class="tnv-c__b">
+                <div class="list-item mt-0">
+                    <div class="row">
+                        @foreach($rows as $row)
+                            <div class="col-md-12">@include('Flight::frontend.manageFlight.loop-list')</div>
+                        @endforeach
+                    </div>
                 </div>
             </div>
-            <div class="bc-pagination mt-0 mb-0">
-                <span class="count-string">{{ __("Showing :from - :to of :total Flights",["from"=>$rows->firstItem(),"to"=>$rows->lastItem(),"total"=>$rows->total()]) }}</span>
-                <div class="mt-2">
-                    {{$rows->appends(request()->query())->links()}}
-                </div>
+            <div class="tnv-c__h" style="border-top:1px solid var(--c-line);border-bottom:0">
+                <span class="tnv-muted" style="font-size:12.5px">{{ __('Showing :from - :to of :total Flights', ['from'=>$rows->firstItem(),'to'=>$rows->lastItem(),'total'=>$rows->total()]) }}</span>
+                <div>{{ $rows->appends(request()->query())->links() }}</div>
             </div>
         </div>
     @else
-        {{__("No Flight")}}
+        <div class="tnv-c"><div class="tnv-empty">
+            <div class="tnv-empty__ic"><i class="icofont-airplane-alt"></i></div>
+            <div class="tnv-empty__t">{{ __('No flights yet') }}</div>
+            <div class="tnv-empty__s">{{ __('Add a flight to start selling seats.') }}</div>
+            @if(Auth::user()->hasPermission('flight_create') && empty($recovery))
+                <div style="margin-top:14px"><a href="{{ route('flight.vendor.create') }}" class="tnv-btn tnv-btn--gold"><i class="icofont-plus"></i> {{ __('Add Flight') }}</a></div>
+            @endif
+        </div></div>
     @endif
+
+</div>
 @endsection

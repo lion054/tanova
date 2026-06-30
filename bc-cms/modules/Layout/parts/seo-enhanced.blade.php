@@ -45,7 +45,7 @@ if (empty($page_image)) {
 <!-- ========== STRUCTURED DATA (JSON-LD) ========== -->
 <script type="application/ld+json">
 {
-  "@context": "https://schema.org",
+  "@@context": "https://schema.org",
   "@type": "TravelAgency",
   "name": "{{ $site_name }}",
   "url": "{{ url('/') }}",
@@ -76,7 +76,7 @@ if (empty($page_image)) {
 }
 </script>
 
-@if(!empty($seo_meta) && $seo_meta['seo_index'] == 0)
+@if(!empty($seo_meta) && isset($seo_meta['seo_index']) && $seo_meta['seo_index'] == 0)
 <meta name="robots" content="noindex, nofollow">
 @endif
 

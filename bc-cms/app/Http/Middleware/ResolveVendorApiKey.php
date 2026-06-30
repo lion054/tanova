@@ -17,7 +17,9 @@ class ResolveVendorApiKey
     {
         $bearer = $request->bearerToken();
 
-        if (!$bearer || !str_starts_with($bearer, 'sk_live_')) {
+        // Accept publishable/secret keys in live or test mode:
+        // pk_live_ / sk_live_ / pk_test_ / sk_test_
+        if (!$bearer || !preg_match('/^(pk|sk)_(live|test)_/', $bearer)) {
             return response()->json([
                 'error' => ['code' => 'missing_api_key', 'message' => 'A valid vendor API key is required.'],
             ], 401);
@@ -57,13 +59,26 @@ class ResolveVendorApiKey
             return response()->json(['error' => ['code' => $code, 'message' => $message]], 403);
         }
 
+        // ── Read-only gate for publishable keys ────────────────────────────────
+        // Publishable (pk_live_) keys are meant for a vendor's website front-end,
+        // so they may ONLY perform safe, read-only requests. Any write is rejected.
+        if ($apiKey->isPublishable() && !in_array($request->method(), ['GET', 'HEAD', 'OPTIONS'], true)) {
+            return response()->json([
+                'error' => [
+                    'code'    => 'read_only_key',
+                    'message' => 'This is a publishable (read-only) key. Use a secret key (sk_live_) from your server for write operations.',
+                ],
+            ], 403);
+        }
+
         $vendor = $apiKey->vendor;
 
         // ── Subscription gate ─────────────────────────────────────────────────
-        // An active subscription is required to use the API.
+        // An active subscription is required to use the LIVE API.
+        // Test (sandbox) keys are exempt so developers can build before subscribing.
         // A grace period (setting_item vendor_subscription_grace_period) is respected
         // via vendor_plan_enable, which already adds grace days to vendor_plan_expires_at.
-        if (!$vendor->vendor_plan_enable) {
+        if (!$apiKey->isTest() && !$vendor->vendor_plan_enable) {
             $active = VendorSubscription::activeForVendor($vendor->id);
 
             if (!$active) {
@@ -84,6 +99,7 @@ class ResolveVendorApiKey
 
         // Set vendor context — all scopes and controllers read from here
         VendorContext::set($vendor);
+        VendorContext::setMode($apiKey->isTest() ? 'test' : 'live');
 
         // Set the authenticated user so auth()->user() calls work throughout the app
         Auth::setUser($vendor);

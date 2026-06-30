@@ -1,4 +1,4 @@
-@extends('vendor.layouts.app')
+@extends('layouts.user')
 
 @section('title', 'Concierge & Support')
 
@@ -194,7 +194,7 @@
                 <h5 class="modal-title">Close Conversation</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <form method="POST" action="{{ route('user.concierge.close', '') }}">
+            <form method="POST" id="closeForm" action="#">
                 @csrf
                 <div class="modal-body">
                     <div class="form-group">
@@ -210,6 +210,16 @@
         </div>
     </div>
 </div>
+
+<script>
+document.querySelectorAll('[data-target="#closeModal"]').forEach(btn => {
+  btn.addEventListener('click', function() {
+    const id = this.dataset.id;
+    const form = document.getElementById('closeForm');
+    form.action = '{{ route("user.concierge.close", ":id") }}'.replace(':id', id);
+  });
+});
+</script>
 
 <style>
 .concierge-dashboard {

@@ -38,3 +38,4 @@ Route::middleware(['web'])->namespace('\App\Http\Controllers')->group(function (
     Route::get('/update/overview', 'InstallerController@redirectToHome');
     Route::get('/update/database', 'InstallerController@redirectToHome');
 });
+

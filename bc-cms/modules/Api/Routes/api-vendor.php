@@ -18,10 +18,13 @@ Route::options('v/{any}', fn() => response('', 204))->where('any', '.*')->middle
 Route::prefix('v')
     ->middleware([
         'api',
+        \App\Http\Middleware\ApiVersion::class,           // date-based versioning (Tsoka-Version / X-Tsoka-Version)
         'throttle:vendor-api',                            // 120 req/min per API key (burst protection)
-        \App\Http\Middleware\ResolveVendorApiKey::class,  // resolves vendor + subscription gate
+        \App\Http\Middleware\ResolveVendorApiKey::class,  // resolves vendor + key type/mode + subscription gate
+        \App\Http\Middleware\VendorIdempotency::class,    // Idempotency-Key replay for write requests
         \App\Http\Middleware\VendorCors::class,           // dynamic CORS using resolved vendor's allowed origins
         \App\Http\Middleware\TrackVendorApiUsage::class,  // usage tracking + 80% alert (post-response)
+        \App\Http\Middleware\VendorApiResponseHeaders::class, // X-RateLimit-*, X-Tsoka-Mode, ETag/Cache-Control
     ])
     ->group(function () {
 

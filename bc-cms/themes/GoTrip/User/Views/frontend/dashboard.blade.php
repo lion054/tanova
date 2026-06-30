@@ -1,105 +1,84 @@
 @extends('layouts.user')
 @section('content')
-<div class="bc-user-dashboard">
+@php
+    $dashIcon = function ($k) {
+        $m = ['pending'=>'icofont-clock-time','earn'=>'icofont-money','book'=>'icofont-ticket','service'=>'icofont-listing-box','revenue'=>'icofont-money'];
+        foreach ($m as $kw => $ic) { if (str_contains(strtolower((string) $k), $kw)) return $ic; }
+        return 'icofont-chart-bar-graph';
+    };
+@endphp
+<div class="tnv-page">
 
-    {{-- Page header --}}
-    <div class="portal-header">
+    <div class="tnv-ph">
         <div>
-            <p class="portal-eyebrow">{{ __("Overview") }}</p>
-            <h1 class="portal-h1">{{ __("Dashboard") }}</h1>
+            <div class="tnv-ph__crumb">{{ __('Overview') }}</div>
+            <h1 class="tnv-ph__title">{{ __('Dashboard') }}</h1>
         </div>
     </div>
 
     @include('admin.message')
 
-    {{-- Stat cards --}}
     @if(!empty($cards_report))
-    <div class="row y-gap-20 mb-28">
+    <div class="tnv-grid tnv-grid--stats" style="margin-bottom:18px">
         @foreach($cards_report as $key => $item)
-        <div class="col-xl-3 col-md-6">
-            <div class="portal-stat">
-                <div class="portal-stat__label">{{ $item['title'] }}</div>
-                <div class="portal-stat__value">{{ $item['amount'] }}</div>
-                <div class="portal-stat__desc">{{ $item['desc'] }}</div>
+            <div class="tnv-stat">
+                <div class="tnv-stat__ic"><i class="{{ $dashIcon($key) }}"></i></div>
+                <div class="tnv-stat__main">
+                    <div class="tnv-stat__l">{{ $item['title'] }}</div>
+                    <div class="tnv-stat__v">{{ $item['amount'] }}</div>
+                    @if(!empty($item['desc']))<div class="tnv-muted" style="font-size:11.5px;margin-top:3px">{{ $item['desc'] }}</div>@endif
+                </div>
             </div>
-        </div>
         @endforeach
     </div>
     @endif
 
-    {{-- Charts + recent bookings --}}
-    <div class="row y-gap-20 pt-8">
+    <div class="tnv-grid tnv-grid--2">
 
         {{-- Earning statistics --}}
-        <div class="col-xl-7 col-md-6">
-            <div class="portal-card">
-                <div class="portal-card__header">
-                    <span class="portal-card__title">{{ __("Earning Statistics") }}</span>
-                    <div class="portal-daterange" id="reportrange">
-                        <i class="fa fa-calendar"></i>
-                        <span></span>
-                        <i class="fa fa-caret-down"></i>
-                    </div>
+        <div class="tnv-c">
+            <div class="tnv-c__h">
+                <h3>{{ __('Earning Statistics') }}</h3>
+                <div class="tnv-b tnv-b--neutral" id="reportrange" style="cursor:pointer">
+                    <i class="fa fa-calendar"></i> <span></span> <i class="fa fa-caret-down"></i>
                 </div>
-                <canvas class="bc-user-render-chart"></canvas>
+            </div>
+            <div class="tnv-c__b">
+                <canvas class="bc-user-render-chart" height="150"></canvas>
                 <script>var earning_chart_data = {!! json_encode($earning_chart_data) !!};</script>
             </div>
         </div>
 
         {{-- Recent bookings --}}
-        <div class="col-xl-5 col-md-6">
-            <div class="portal-card">
-                <div class="portal-card__header">
-                    <span class="portal-card__title">{{ __("Recent Bookings") }}</span>
-                    <a href="{{ route('vendor.bookingReport') }}" class="portal-card__link">{{ __("View All") }}</a>
-                </div>
-                <div class="overflow-scroll scroll-bar-1">
-                    <table class="table-2 col-12">
-                        <thead>
-                        <tr>
-                            <th>#</th>
-                            <th>{{ __("Item") }}</th>
-                            <th>{{ __("Total") }}</th>
-                            <th>{{ __("Status") }}</th>
-                        </tr>
-                        </thead>
+        <div class="tnv-c">
+            <div class="tnv-c__h">
+                <h3>{{ __('Recent Bookings') }}</h3>
+                <a href="{{ route('vendor.bookingReport') }}" class="tnv-link-gold">{{ __('View All') }}</a>
+            </div>
+            <div class="tnv-c__b tnv-c__b--flush">
+                @if($recent_bookings && count($recent_bookings))
+                    <table class="tnv-tbl">
+                        <thead><tr><th>#</th><th>{{ __('Item') }}</th><th>{{ __('Total') }}</th><th>{{ __('Status') }}</th></tr></thead>
                         <tbody>
-                        @if($recent_bookings)
-                            @foreach($recent_bookings as $val)
+                        @foreach($recent_bookings as $val)
                             @php
-                                switch ($val->status) {
-                                    case "unpaid": case "processing": case "pending":
-                                        $sc = 'bg-yellow-4 text-yellow-3'; break;
-                                    case "partial_payment":
-                                        $sc = 'bg-blue-1-05 text-blue-1'; break;
-                                    case "paid": case "completed": case "confirmed":
-                                        $sc = 'bg-green-1 text-green-2'; break;
-                                    case "cancelled": case "cancel":
-                                        $sc = 'bg-border text-black'; break;
-                                    case "fail":
-                                        $sc = 'bg-red-3 text-red-2'; break;
-                                    default:
-                                        $sc = 'bg-light-2 text-light-1'; break;
-                                }
+                                $st = $val->status;
+                                $pill = in_array($st,['paid','completed','confirmed']) ? 'tnv-b--pos'
+                                      : (in_array($st,['unpaid','processing','pending','partial_payment']) ? 'tnv-b--gold'
+                                      : (in_array($st,['fail']) ? 'tnv-b--neg' : 'tnv-b--neutral'));
                             @endphp
                             <tr>
-                                <td style="color:#a0a0a0;font-size:11px;">#{{ $val->id }}</td>
-                                <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ $val->service->title ?? '' }}</td>
-                                <td style="font-size:12px;font-weight:600;">{{ format_money($val->total) }}</td>
-                                <td>
-                                    <div class="rounded-100 py-4 text-center text-14 fw-500 {{ $sc }}"
-                                         style="font-size:11px;padding:3px 8px;white-space:nowrap;">
-                                        {{ booking_status_to_text($val->status) }}
-                                    </div>
-                                </td>
+                                <td class="tnv-muted">#{{ $val->id }}</td>
+                                <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ $val->service->title ?? '—' }}</td>
+                                <td class="num">{{ format_money($val->total) }}</td>
+                                <td><span class="tnv-b {{ $pill }}">{{ booking_status_to_text($st) }}</span></td>
                             </tr>
-                            @endforeach
-                        @else
-                            <tr><td colspan="4" class="text-center" style="color:#a0a0a0;font-size:12px;padding:24px 0;">{{ __("No bookings yet") }}</td></tr>
-                        @endif
+                        @endforeach
                         </tbody>
                     </table>
-                </div>
+                @else
+                    <div class="tnv-empty"><div class="tnv-empty__ic"><i class="icofont-ticket"></i></div><div class="tnv-empty__t">{{ __('No bookings yet') }}</div></div>
+                @endif
             </div>
         </div>
 
@@ -113,12 +92,12 @@
 jQuery(function ($) {
     $(".bc-user-render-chart").each(function () {
         var ctx = $(this)[0].getContext('2d');
-        /* Remap chart dataset colours to greyscale */
+        /* Remap chart dataset colours to brand (gold + greyscale) */
         if (earning_chart_data && earning_chart_data.datasets) {
-            var greys = ['#0a0a0a','#5a5a5a','#a0a0a0','#d0d0d0','#e8e8e8'];
+            var cols = ['#E0A23B','#16161A','#A1A1AA','#D0D0D0','#E8E8E8'];
             earning_chart_data.datasets.forEach(function(ds, i) {
-                ds.backgroundColor = greys[i % greys.length];
-                ds.borderColor     = greys[i % greys.length];
+                ds.backgroundColor = cols[i % cols.length];
+                ds.borderColor     = cols[i % cols.length];
             });
         }
         window.myMixedChartForVendor = new Chart(ctx, {

@@ -29,6 +29,8 @@ class ApiKeyPortalController extends Controller
     {
         $request->validate([
             'name'       => 'required|string|max:100',
+            'type'       => 'nullable|in:secret,publishable',
+            'mode'       => 'nullable|in:live,test',
             'domain'     => 'nullable|string|max:255',
             'rate_limit' => 'nullable|integer|min:0|max:10000000',
         ]);
@@ -38,6 +40,8 @@ class ApiKeyPortalController extends Controller
             $request->input('name'),
             $request->integer('rate_limit', 10000),
             $request->input('domain'),
+            $request->input('type', 'secret'),
+            $request->input('mode', 'live'),
         );
 
         return back()

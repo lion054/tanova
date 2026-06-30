@@ -29,15 +29,14 @@ Route::group(['prefix' => 'geo'], function () {
 // ── Vendor API Routes (Prefix: /api/v) ───────────────────────────────────
 // Authenticated via Bearer token (API key)
 // SaaS model: All data filtered by vendor_id
+// NOTE: The canonical vendor API (services, bookings, tanova, analytics, concierge)
+// lives in modules/Api/Routes/api-vendor.php — properly secured by the
+// ResolveVendorApiKey middleware and backed by Modules\Api\Controllers\Vendor\*.
+// The only routes kept here are the chatbot endpoints whose controller exists.
+// (Previously this block also referenced TanovaController/ServicesController/
+//  BookingsController which never existed — those broke `php artisan route:list`
+//  and were dead duplicates of api-vendor.php, so they have been removed.)
 Route::prefix('v')->middleware('auth:sanctum')->group(function () {
-
-    // Tanova Trip Planner API
-    Route::prefix('tanova')->group(function () {
-        Route::post('generate', [\Modules\Vendor\Controllers\TanovaController::class, 'generate']);
-        Route::get('trips', [\Modules\Vendor\Controllers\TanovaController::class, 'listTrips']);
-        Route::get('trips/{id}', [\Modules\Vendor\Controllers\TanovaController::class, 'getTrip']);
-        Route::get('trips/{id}/replan', [\Modules\Vendor\Controllers\TanovaController::class, 'getReplanSuggestions']);
-    });
 
     // Tsoka AI Concierge (Chatbot) API
     Route::prefix('concierge')->group(function () {
@@ -48,14 +47,5 @@ Route::prefix('v')->middleware('auth:sanctum')->group(function () {
         Route::post('conversations/{id}/close', [\Modules\Vendor\Controllers\ChatbotController::class, 'closeConversation']);
         Route::get('statistics', [\Modules\Vendor\Controllers\ChatbotController::class, 'getStatistics']);
     });
-
-    // Services API
-    Route::get('services/{type}', [\Modules\Vendor\Controllers\ServicesController::class, 'index']);
-
-    // Bookings API
-    Route::get('bookings', [\Modules\Vendor\Controllers\BookingsController::class, 'index']);
-    Route::get('bookings/{id}', [\Modules\Vendor\Controllers\BookingsController::class, 'show']);
-    Route::put('bookings/{id}', [\Modules\Vendor\Controllers\BookingsController::class, 'update']);
-    Route::post('bookings/{id}/cancel', [\Modules\Vendor\Controllers\BookingsController::class, 'cancel']);
 
 });
