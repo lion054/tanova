@@ -68,6 +68,8 @@ class ThemeProvider extends \Themes\Base\ThemeProvider
             'user'      => \Modules\User\ModuleProvider::class,
             'visa'      => \Modules\Visa\ModuleProvider::class,
             'tanova'    => \Pro\Tanova\ModuleProvider::class,
+            // In this list so the vendor sidebar and the admin menu pick up its menu entries (Finance > TourPay, Statement).
+            'tourpay'   => \Modules\TourPay\ModuleProvider::class,
         ]);
         parent::register();
         $this->app->register(\Pro\Tanova\ModuleProvider::class);

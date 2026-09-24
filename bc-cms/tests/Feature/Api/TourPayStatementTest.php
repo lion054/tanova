@@ -47,4 +47,13 @@ class TourPayStatementTest extends ApiTestCase
         $later = $svc->build(now()->subDays(2)->startOfDay(), now()->endOfDay());
         $this->assertSame(260.0, $later['opening']['USD']);
     }
+
+    public function test_the_vendor_sidebar_has_finance_with_tourpay_and_statement(): void
+    {
+        $this->actingAs($this->vendor);
+        $html = $this->get('/user/tourpay')->assertOk()->getContent();
+        $this->assertStringContainsString('href="' . route('tourpay.vendor.statement') . '"', $html);
+        $this->assertStringContainsString('href="' . route('tourpay.vendor.index') . '"', $html);
+        $this->assertMatchesRegularExpression('/Finance/i', $html);
+    }
 }

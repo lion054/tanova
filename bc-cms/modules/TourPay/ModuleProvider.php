@@ -53,7 +53,6 @@ class ModuleProvider extends ModuleServiceProvider
                 'title'      => __('Statement'),
                 'icon'       => 'icofont-file-document',
                 'position'   => 86,
-                'permission' => 'dashboard_vendor_access',
             ],
         ];
     }
