@@ -42,6 +42,8 @@ class VendorApiKeyController extends Controller
             'mode'       => 'nullable|in:live,test',          // test = sandbox key
             'domain'     => 'nullable|string|max:255',   // website domain — auto-registers CORS
             'rate_limit' => 'nullable|integer|min:0|max:10000000',
+            'scopes'     => 'nullable|array',
+            'scopes.*'   => ['string', \Illuminate\Validation\Rule::in(\App\Support\ApiScopes::all())],   // secret keys only; empty = full access
         ]);
 
         $key = VendorApiKey::generate(
@@ -51,6 +53,7 @@ class VendorApiKeyController extends Controller
             $request->input('domain'),
             $request->input('type', 'secret'),
             $request->input('mode', 'live'),
+            $request->input('scopes'),
         );
 
         return response()->json([

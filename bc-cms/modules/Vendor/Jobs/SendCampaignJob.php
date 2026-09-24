@@ -53,16 +53,6 @@ class SendCampaignJob implements ShouldQueue
 
     private function recipients(VendorCampaign $campaign)
     {
-        $query = Booking::where('vendor_id', $campaign->vendor_id)
-            ->whereNotNull('email')
-            ->where('email', '!=', '');
-
-        if ($campaign->audience === 'completed') {
-            $query->where('status', Booking::COMPLETED);
-        } elseif ($campaign->audience === 'upcoming') {
-            $query->whereDate('start_date', '>=', now()->toDateString());
-        }
-
-        return $query->pluck('email')->unique()->values();
+        return app(\Modules\Vendor\Services\CampaignAudience::class)->emails((int) $campaign->vendor_id, (string) $campaign->audience);
     }
 }

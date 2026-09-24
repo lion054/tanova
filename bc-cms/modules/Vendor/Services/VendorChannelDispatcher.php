@@ -21,6 +21,10 @@ class VendorChannelDispatcher
 {
     public function send(int $vendorId, string $channel, array $recipient, string $subject, string $body): array
     {
+        if (\App\Services\VendorContext::active() && \App\Services\VendorContext::isTest()) {
+            return ['status' => 'skipped', 'error' => 'test_mode', 'to' => $recipient['email'] ?? ($recipient['phone'] ?? null)];
+        }
+
         $vendor = User::find($vendorId);
         if (! $vendor) {
             return ['status' => 'failed', 'error' => 'vendor_not_found', 'to' => null];

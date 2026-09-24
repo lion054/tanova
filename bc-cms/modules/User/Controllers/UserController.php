@@ -335,31 +335,35 @@ class UserController extends FrontendController
             ->where('status', '!=', 'draft')
             ->whereIn('object_model', array_merge(array_keys(get_bookable_services()), ['tanova_trip']));
 
-        if ($s = $request->get('s')) {
-            if (is_numeric($s)) {
-                $query->where('id', $s);
-            } else {
-                $query->where(function ($q) use ($s) {
-                    $q->where('first_name', 'like', "%{$s}%")
-                      ->orWhere('last_name',  'like', "%{$s}%")
-                      ->orWhere('email',       'like', "%{$s}%")
-                      ->orWhere('phone',       'like', "%{$s}%");
-                });
-            }
-        }
+        $everything = (clone $query)->count();
+        \App\Support\ListQuery::search($query, $request->query('s'), ['first_name', 'last_name', 'email', 'phone', 'code'], 'id');
 
-        if ($status = $request->get('status')) {
-            $query->where('status', $status);
-        }
+        $statuses = (array) config('booking.statuses');
+        $statusOpts = [];
+        foreach ($statuses as $st) { $statusOpts[$st] = booking_status_to_text($st); }
+        if (isset($statusOpts[(string) $request->query('status')])) { $query->where('status', $request->query('status')); }
 
-        $query->orderBy('id', 'desc');
+        $services = [];
+        foreach (array_keys(get_bookable_services()) as $type) { $services[$type] = ucfirst(str_replace('_', ' ', $type)); }
+        $services['tanova_trip'] = __('Tanova trip');
+        if (isset($services[(string) $request->query('service')])) { $query->where('object_model', $request->query('service')); }
+
+        if ($from = \App\Support\ListQuery::date($request->query('from'))) { $query->whereDate('start_date', '>=', $from); }
+        if ($to = \App\Support\ListQuery::date($request->query('to'))) { $query->whereDate('start_date', '<=', $to); }
+
+        \App\Support\ListQuery::sort($query, $request->query('sort'), ['newest' => ['id', 'desc'], 'oldest' => ['id', 'asc'], 'trip' => ['start_date', 'asc'], 'trip_late' => ['start_date', 'desc'], 'amount' => ['total', 'desc']], 'newest');
+        $fb = \App\Support\FilterBar::make($request)->search('s', __('Search guest, e-mail, code or number'))
+            ->select('status', __('Status'), $statusOpts, __('Any status'))->select('service', __('Service'), $services, __('Any service'))->dates('from', 'to', __('Trip date'))
+            ->sort(['newest' => __('Newest first'), 'oldest' => __('Oldest first'), 'trip' => __('Trip date, soonest'), 'trip_late' => __('Trip date, latest'), 'amount' => __('Biggest amount')], 'newest')
+            ->perPage()->noun(__('bookings'))->total((clone $query)->reorder()->count(), $everything)->toArray();
 
         $totalRev   = (clone $query)->sum('total');
         $totalPaid  = (clone $query)->sum('paid');
         $processing = (clone $query)->where('status', 'processing')->count();
 
         return view('User::frontend.vendorBookings', [
-            'rows'        => $query->paginate(20),
+            'rows'        => $query->paginate(\App\Support\ListQuery::perPage($request))->withQueryString(),
+            'fb'          => $fb,
             'total_rev'   => $totalRev,
             'total_paid'  => $totalPaid,
             'processing'  => $processing,

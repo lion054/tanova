@@ -141,8 +141,11 @@ class ConciergeApiController extends Controller
             $this->authorize('update', $conversation);
         }
 
-        // Rate limiting: max 1 message per 2 seconds per conversation
-        if ($conversation->last_message_at && now()->diffInSeconds($conversation->last_message_at) < 2) {
+        // Rate limiting: max 1 message per 2 seconds per conversation.
+        // Carbon 3 made diffInSeconds() signed, so now()->diffInSeconds($past)
+        // is NEGATIVE — the old comparison was true for every message ever sent,
+        // permanently blocking replies. Measure forward from the last message.
+        if ($conversation->last_message_at && $conversation->last_message_at->diffInSeconds(now()) < 2) {
             return response()->json(['error' => 'Please wait before sending another message'], 429);
         }
 

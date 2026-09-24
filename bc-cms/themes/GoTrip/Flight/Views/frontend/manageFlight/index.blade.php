@@ -16,6 +16,7 @@
     </div>
 
     @include('admin.message')
+    @include('vendor.partials.filterbar', ['fb' => $fb ?? null])
 
     @if($rows->total() > 0)
         <div class="tnv-c">
@@ -33,6 +34,8 @@
                 <div>{{ $rows->appends(request()->query())->links() }}</div>
             </div>
         </div>
+    @elseif(!empty($fb['active']))
+        @include('vendor.partials.nomatch', ['fb' => $fb])
     @else
         <div class="tnv-c"><div class="tnv-empty">
             <div class="tnv-empty__ic"><i class="icofont-airplane-alt"></i></div>

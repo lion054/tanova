@@ -77,6 +77,8 @@ Route::group(['prefix' => 'vendor', 'middleware' => ['auth']], function () {
 
     // Pricing tiers (Phase 1)
     Route::get('/pricing-tiers',                 'PricingTierController@index')->name('vendor.pricing_tiers.index');
+    Route::post('/pricing-tiers/package',        'PricingTierController@saveTier')->name('vendor.pricing_tiers.package.save');
+    Route::delete('/pricing-tiers/package/{tier}', 'PricingTierController@deleteTier')->name('vendor.pricing_tiers.package.delete');
     Route::post('/pricing-tiers',                'PricingTierController@store')->name('vendor.pricing_tiers.store');
     Route::put('/pricing-tiers/{pricingTier}',   'PricingTierController@update')->name('vendor.pricing_tiers.update');
     Route::delete('/pricing-tiers/{pricingTier}', 'PricingTierController@destroy')->name('vendor.pricing_tiers.destroy');
@@ -86,9 +88,27 @@ Route::group(['prefix' => 'vendor', 'middleware' => ['auth']], function () {
     Route::post('/upsells',          'UpsellController@store')->name('vendor.upsells.store');
     Route::put('/upsells/{upsell}',  'UpsellController@update')->name('vendor.upsells.update');
     Route::delete('/upsells/{upsell}', 'UpsellController@destroy')->name('vendor.upsells.destroy');
+    Route::get('/upsells/services',            'UpsellController@services')->name('vendor.upsells.services');
+    Route::post('/upsells/{upsell}/toggle',    'UpsellController@toggle')->name('vendor.upsells.toggle');
+    Route::post('/upsells/{upsell}/feature',   'UpsellController@feature')->name('vendor.upsells.feature');
 
     // Per-booking operations page (Phase 1 + 2)
     Route::get('/bookings/{booking}/ops', 'BookingOpsController@show')->name('vendor.bookings.ops');
+    Route::post('/bookings/{booking}/status',            'BookingOpsController@status')->name('vendor.bookings.status');
+    Route::post('/bookings/{booking}/comms',             'BookingOpsController@addComm')->name('vendor.bookings.comms.add');
+    Route::delete('/bookings/{booking}/comms/{id}',      'BookingOpsController@deleteComm')->name('vendor.bookings.comms.delete');
+    Route::post('/bookings/{booking}/guests',            'BookingOpsController@addGuest')->name('vendor.bookings.guests.add');
+    Route::put('/bookings/{booking}/guests/{id}',        'BookingOpsController@updateGuest')->name('vendor.bookings.guests.update');
+    Route::delete('/bookings/{booking}/guests/{id}',     'BookingOpsController@deleteGuest')->name('vendor.bookings.guests.delete');
+    Route::post('/bookings/{booking}/guest-link',        'BookingOpsController@newGuestLink')->name('vendor.bookings.guests.link');
+    Route::post('/bookings/{booking}/plan',              'BookingOpsController@buildPlan')->name('vendor.bookings.plan.build');
+    Route::delete('/bookings/{booking}/plan',            'BookingOpsController@clearPlan')->name('vendor.bookings.plan.clear');
+    Route::post('/bookings/{booking}/plan/{id}/waive',   'BookingOpsController@waivePlanRow')->name('vendor.bookings.plan.waive');
+    Route::post('/bookings/{booking}/payments',          'BookingOpsController@recordPayment')->name('vendor.bookings.payments.add');
+    Route::post('/bookings/{booking}/refunds',           'BookingOpsController@recordRefund')->name('vendor.bookings.refunds.add');
+    Route::post('/bookings/{booking}/documents',         'BookingOpsController@addDocument')->name('vendor.bookings.documents.add');
+    Route::delete('/bookings/{booking}/documents/{id}',  'BookingOpsController@deleteDocument')->name('vendor.bookings.documents.delete');
+    Route::post('/bookings/{booking}/trip-brief',        'BookingOpsController@sendTripBrief')->name('vendor.bookings.trip_brief');
 
     // Booking add-ons (Phase 1)
     Route::post('/bookings/{booking}/upsells', 'UpsellController@attach')->name('vendor.upsells.attach');
@@ -100,9 +120,30 @@ Route::group(['prefix' => 'vendor', 'middleware' => ['auth']], function () {
     Route::post('/quotes/{quote}/accept',     'QuoteController@accept')->name('vendor.quotes.accept');
     Route::post('/quotes/{quote}/decline',    'QuoteController@decline')->name('vendor.quotes.decline');
 
+    // Customers / CRM (Tanova port, phase 4)
+    Route::get('/customers',              'CustomerController@index')->name('vendor.customers.index');
+    Route::post('/customers',             'CustomerController@store')->name('vendor.customers.store');
+    Route::post('/customers/sync',        'CustomerController@sync')->name('vendor.customers.sync');
+    Route::put('/customers/{customer}',   'CustomerController@update')->name('vendor.customers.update');
+    Route::delete('/customers/{customer}', 'CustomerController@destroy')->name('vendor.customers.destroy');
+
+    // Invoices (Tanova port, phase 5) — own ledger, never writes to booking payments
+    // Invoices moved to TourPay, the one invoicing module. Old bookmarks land there.
+    Route::get('/invoices', fn () => redirect()->route('tourpay.vendor.index'))->name('vendor.invoices.index');
+    Route::get('/invoices/{any}', fn () => redirect()->route('tourpay.vendor.index'))->where('any', '.*');
+
+    // Holiday greetings (Tanova port, phase 4)
+    Route::get('/holidays',                'HolidayController@index')->name('vendor.holidays.index');
+    Route::post('/holidays',               'HolidayController@store')->name('vendor.holidays.store');
+    Route::post('/holidays/{holiday}/send', 'HolidayController@send')->name('vendor.holidays.send');
+    Route::put('/holidays/{holiday}',      'HolidayController@update')->name('vendor.holidays.update');
+    Route::delete('/holidays/{holiday}',   'HolidayController@destroy')->name('vendor.holidays.destroy');
+
     // Waitlist (Phase 2)
     Route::get('/waitlist',              'WaitlistController@index')->name('vendor.waitlist.index');
     Route::post('/waitlist',             'WaitlistController@store')->name('vendor.waitlist.store');
+    Route::post('/waitlist/notify-all',  'WaitlistController@notifyAll')->name('vendor.waitlist.notifyAll');
+    Route::post('/waitlist/{waitlist}/notify', 'WaitlistController@notify')->name('vendor.waitlist.notify');
     Route::put('/waitlist/{waitlist}',   'WaitlistController@update')->name('vendor.waitlist.update');
     Route::delete('/waitlist/{waitlist}', 'WaitlistController@destroy')->name('vendor.waitlist.destroy');
 
@@ -112,18 +153,31 @@ Route::group(['prefix' => 'vendor', 'middleware' => ['auth']], function () {
     Route::post('/bookings/{booking}/check-out', 'CheckinController@checkOut')->name('vendor.checkin.out');
     Route::post('/bookings/{booking}/no-show',   'CheckinController@noShow')->name('vendor.checkin.noshow');
 
+
+    // Trending and bestsellers
+    Route::get('/trending',               'ShelvesController@index')->name('vendor.shelves');
+    Route::post('/trending/pin',          'ShelvesController@pin')->name('vendor.shelves.pin');
+
     // Today snapshot (Phase 2)
     Route::get('/today', 'TodayController@index')->name('vendor.today');
+    Route::get('/departures',                'DepartureController@index')->name('vendor.departures.index');
+    Route::post('/departures',               'DepartureController@store')->name('vendor.departures.store');
+    Route::put('/departures/{id}',           'DepartureController@update')->name('vendor.departures.update');
+    Route::delete('/departures/{id}',        'DepartureController@destroy')->name('vendor.departures.destroy');
+    Route::post('/departures/capacity',      'DepartureController@capacity')->name('vendor.departures.capacity');
+    Route::get('/departures/tours',          'DepartureController@tours')->name('vendor.departures.tours');
 
     // Loyalty (Phase 3)
     Route::get('/loyalty',                'LoyaltyController@index')->name('vendor.loyalty.index');
     Route::post('/loyalty/tiers',         'LoyaltyController@storeTier')->name('vendor.loyalty.tiers.store');
     Route::delete('/loyalty/tiers/{tier}', 'LoyaltyController@destroyTier')->name('vendor.loyalty.tiers.destroy');
+    Route::post('/loyalty/rule',          'LoyaltyController@saveRule')->name('vendor.loyalty.rule');
     Route::post('/loyalty/adjust',        'LoyaltyController@adjust')->name('vendor.loyalty.adjust');
 
     // Scheduled messages (Phase 3)
     Route::get('/scheduled-messages',                       'ScheduledMessageController@index')->name('vendor.scheduled_messages.index');
     Route::post('/scheduled-messages',                      'ScheduledMessageController@store')->name('vendor.scheduled_messages.store');
+    Route::post('/scheduled-messages/starter',              'ScheduledMessageController@starter')->name('vendor.scheduled_messages.starter');
     Route::put('/scheduled-messages/{scheduledMessage}',    'ScheduledMessageController@update')->name('vendor.scheduled_messages.update');
     Route::post('/scheduled-messages/{scheduledMessage}/toggle', 'ScheduledMessageController@toggle')->name('vendor.scheduled_messages.toggle');
     Route::delete('/scheduled-messages/{scheduledMessage}', 'ScheduledMessageController@destroy')->name('vendor.scheduled_messages.destroy');
@@ -131,6 +185,7 @@ Route::group(['prefix' => 'vendor', 'middleware' => ['auth']], function () {
     // Occasions (Phase 3)
     Route::get('/occasions',              'OccasionController@index')->name('vendor.occasions.index');
     Route::post('/occasions',             'OccasionController@store')->name('vendor.occasions.store');
+    Route::post('/occasions/import',                        'OccasionController@import')->name('vendor.occasions.import');
     Route::delete('/occasions/{occasion}', 'OccasionController@destroy')->name('vendor.occasions.destroy');
 
     // Email campaigns (Phase 3)
@@ -156,6 +211,7 @@ Route::group(['prefix' => 'vendor', 'middleware' => ['auth']], function () {
     // Portal extras (Phase 6)
     Route::get('/go-live', 'PortalExtrasController@goLive')->name('vendor.go_live');
     Route::get('/help',    'PortalExtrasController@help')->name('vendor.help');
+    Route::get('/api-docs','PortalExtrasController@apiDocs')->name('vendor.api_docs');
 
     // Unified Inbox (merges AI Requests + Concierge) — multi-channel messaging
     Route::get('/inbox',                          'InboxController@index')->name('vendor.inbox.index');
@@ -178,3 +234,9 @@ Route::group(['prefix' => 'user/integrations', 'middleware' => ['auth']], functi
     Route::post('/{channel}/disconnect', 'IntegrationsController@disconnect')->name('user.integrations.disconnect');
     Route::get('/{channel}/statistics',  'IntegrationsController@statistics')->name('user.integrations.statistics');
 });
+
+
+// The link a customer opens to say who is travelling (no login; a long random token
+// ties it to one booking). See GuestFormController.
+Route::get('guest-form/{token}',  'GuestFormController@show')->name('guest_form.show');
+Route::post('guest-form/{token}', 'GuestFormController@store')->middleware('throttle:20,1')->name('guest_form.store');

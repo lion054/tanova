@@ -226,12 +226,28 @@
                 </button>
             </div>
 
+            @if($errors->any())
+            <div style="background:#fff1f2;color:#e11d48;border-radius:8px;padding:12px 16px;font-size:13px;font-weight:600;margin-bottom:16px;">@foreach($errors->all() as $e)<div>{{ $e }}</div>@endforeach</div>
+            @endif
+
             {{-- ① Client --}}
             <div class="tp-card">
                 <div class="tp-card-header">
                     <div class="tp-card-num">1</div>
                     <div class="tp-card-title">{{ __("Client Details") }}</div>
                 </div>
+                @if(($customers ?? collect())->count())
+                <div class="tp-field">
+                    <label>{{ __("Pick from your customers") }} <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#bbb;">({{ __('optional') }})</span></label>
+                    <select id="tp-customer" onchange="pickCustomer(this)">
+                        <option value="">{{ __('New client, type below') }}</option>
+                        @foreach($customers as $c)
+                            <option value="{{ $c->id }}" data-name="{{ trim($c->first_name.' '.$c->last_name) }}" data-email="{{ $c->email }}" data-phone="{{ $c->phone }}" data-country="{{ $c->nationality }}" {{ (int) old('customer_id', $row->customer_id) === (int) $c->id ? 'selected' : '' }}>{{ trim($c->first_name.' '.$c->last_name) }}{{ $c->email ? ' · '.$c->email : '' }}</option>
+                        @endforeach
+                    </select>
+                    <input type="hidden" name="customer_id" id="tp-customer-id" value="{{ old('customer_id', $row->customer_id) }}">
+                </div>
+                @endif
                 <div class="tp-row">
                     <div class="tp-field">
                         <label>{{ __("Full Name") }}<span class="req">*</span></label>
@@ -280,6 +296,16 @@
                     <div class="tp-card-num">3</div>
                     <div class="tp-card-title">{{ __("Line Items") }}</div>
                 </div>
+                                @if(!empty($catalogue))
+                <div class="tp-field" style="margin-bottom:12px;">
+                    <select id="tp-catalogue" onchange="addFromCatalogue(this)">
+                        <option value="">+ {{ __('Add from your tours and add-ons…') }}</option>
+                        @foreach(collect($catalogue)->groupBy('group') as $g => $rows)
+                        <optgroup label="{{ $g }}">@foreach($rows as $r)<option value="{{ $loop->parent->index }}-{{ $loop->index }}" data-name="{{ $r['name'] }}" data-price="{{ $r['price'] }}">{{ $r['name'] }} · {{ number_format($r['price'], 2) }}</option>@endforeach</optgroup>
+                        @endforeach
+                    </select>
+                </div>
+                @endif
                 <table class="tp-items-table">
                     <thead>
                         <tr>
@@ -299,7 +325,7 @@
                                 <input type="text" name="items[{{ $i }}][description]" value="{{ $item['description'] ?? '' }}" placeholder="{{ __('Optional detail') }}" class="tp-item-sub-input">
                             </td>
                             <td><input type="number" name="items[{{ $i }}][quantity]"   value="{{ $item['quantity']   ?? 1 }}" min="0" step="any" class="tp-qty"   oninput="recalc()"></td>
-                            <td><input type="number" name="items[{{ $i }}][unit_price]" value="{{ $item['unit_price'] ?? 0 }}" min="0" step="any" class="tp-price" oninput="recalc()"></td>
+                            <td><input type="number" name="items[{{ $i }}][unit_price]" value="{{ $item['unit_price'] ?? 0 }}" step="any" class="tp-price" oninput="recalc()"></td>
                             <td><div class="tp-item-total-cell tp-item-total">{{ number_format(($item['quantity'] ?? 1) * ($item['unit_price'] ?? 0), 2) }}</div></td>
                             <td><button type="button" class="tp-remove-item" onclick="removeItem(this)"><i class="icofont-trash"></i></button></td>
                         </tr>
@@ -310,7 +336,7 @@
                                 <input type="text" name="items[0][description]" placeholder="{{ __('Optional detail') }}" class="tp-item-sub-input">
                             </td>
                             <td><input type="number" name="items[0][quantity]"   value="1" min="0" step="any" class="tp-qty"   oninput="recalc()"></td>
-                            <td><input type="number" name="items[0][unit_price]" value="0" min="0" step="any" class="tp-price" oninput="recalc()"></td>
+                            <td><input type="number" name="items[0][unit_price]" value="0" step="any" class="tp-price" oninput="recalc()"></td>
                             <td><div class="tp-item-total-cell tp-item-total">0.00</div></td>
                             <td><button type="button" class="tp-remove-item" onclick="removeItem(this)"><i class="icofont-trash"></i></button></td>
                         </tr>
@@ -372,7 +398,8 @@
                     <select name="currency">
                         @php
                             $currencies  = ['ZAR'=>'ZAR — Rand','USD'=>'USD — Dollar','EUR'=>'EUR — Euro','GBP'=>'GBP — Pound','KES'=>'KES — Shilling','TZS'=>'TZS — Tanzanian Sh.','BWP'=>'BWP — Pula','NAD'=>'NAD — Namibian $'];
-                            $selectedCur = old('currency', $row->currency ?? setting_item('tourpay_default_currency','ZAR'));
+                            $selectedCur = old('currency', $row->currency ?: ($settings->default_currency ?: 'USD'));
+                            foreach (array_filter([$selectedCur, $settings->default_currency ?? null, 'USD']) as $extra) { if (!isset($currencies[$extra])) { $currencies[$extra] = $extra; } }
                         @endphp
                         @foreach($currencies as $code => $label)
                             <option value="{{ $code }}" {{ $selectedCur == $code ? 'selected' : '' }}>{{ $label }}</option>
@@ -380,21 +407,37 @@
                     </select>
                 </div>
                 <div class="tp-field">
-                    <label>{{ __("Tax Rate (VAT %)") }}</label>
-                    <input type="number" name="tax_rate" id="tp-tax-rate"
-                           value="{{ old('tax_rate', $row->tax_rate ?? setting_item('tourpay_default_vat',15)) }}"
-                           min="0" max="100" step="any"
-                           oninput="recalc(); document.getElementById('tp-tax-rate-label').textContent = this.value">
+                    <label>{{ __("Taxes") }} <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#bbb;">({{ __('e.g. VAT 15, Tourism levy 1') }})</span></label>
+                    @php
+                        $taxRows = old('tax_lines', $row->tax_lines ?: (($row->tax_rate ?? 0) > 0 ? [['name' => 'VAT', 'rate' => $row->tax_rate + 0]] : []));
+                    @endphp
+                    <div id="tp-taxes">
+                        @foreach(array_values($taxRows) as $ti => $tl)
+                        <div class="tp-tax-row" style="display:flex;gap:6px;margin-bottom:6px;">
+                            <input type="text" name="tax_lines[{{ $ti }}][name]" value="{{ $tl['name'] ?? '' }}" placeholder="{{ __('Name') }}" style="flex:1;min-width:0;">
+                            <input type="number" name="tax_lines[{{ $ti }}][rate]" value="{{ ($tl['rate'] ?? 0) + 0 }}" min="0" max="100" step="any" class="tp-tax-rate" placeholder="%" style="width:72px;" oninput="recalc()">
+                            <button type="button" onclick="this.parentNode.remove();recalc();" style="border:0;background:none;color:#bbb;cursor:pointer;">✕</button>
+                        </div>
+                        @endforeach
+                    </div>
+                    <button type="button" onclick="addTax()" style="border:1.5px dashed #ddd;background:#fff;border-radius:6px;padding:4px 10px;font-size:12px;cursor:pointer;">+ {{ __('Add a tax') }}</button>
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Discount") }}</label>
+                    <input type="number" name="discount" id="tp-discount" value="{{ old('discount', $row->discount ?? 0) + 0 }}" min="0" step="any" oninput="recalc()">
+                </div>
+                <div class="tp-field">
+                    <label>{{ __("Prices") }}</label>
+                    <select name="tax_mode" id="tp-tax-mode" onchange="recalc()">
+                        <option value="inclusive" {{ old('tax_mode', $row->tax_mode ?: 'inclusive') === 'inclusive' ? 'selected' : '' }}>{{ __("Include tax") }}</option>
+                        <option value="exclusive" {{ old('tax_mode', $row->tax_mode ?: 'inclusive') === 'exclusive' ? 'selected' : '' }}>{{ __("Exclude tax (add on top)") }}</option>
+                    </select>
                 </div>
                 <div class="tp-summary">
-                    <div class="tp-summary-row">
-                        <span>{{ __("Excl. VAT") }}</span>
-                        <span id="tp-subtotal">0.00</span>
-                    </div>
-                    <div class="tp-summary-row">
-                        <span>{{ __("VAT") }} (<span id="tp-tax-rate-label">{{ old('tax_rate', $row->tax_rate ?? setting_item('tourpay_default_vat',15)) }}</span>%)</span>
-                        <span id="tp-tax">0.00</span>
-                    </div>
+                    <div class="tp-summary-row" id="tp-row-items"><span>{{ __("Items") }}</span><span id="tp-items-sum">0.00</span></div>
+                    <div class="tp-summary-row" id="tp-row-discount" style="display:none"><span>{{ __("Discount") }}</span><span id="tp-discount-show">0.00</span></div>
+                    <div class="tp-summary-row" id="tp-row-ex"><span id="tp-ex-label">{{ __("Excl. VAT") }}</span><span id="tp-subtotal">0.00</span></div>
+                    <div class="tp-summary-row"><span>{{ __("VAT") }} (<span id="tp-tax-rate-label">0</span>%)</span><span id="tp-tax">0.00</span></div>
                 </div>
                 <div class="tp-side-total-wrap">
                     <div class="tp-side-total-label">{{ __("Total Due") }}</div>
@@ -410,26 +453,23 @@
                     <div class="tp-card-num" style="background:#f59e0b;font-size:13px;"><i class="icofont-calendar"></i></div>
                     <div class="tp-card-title">{{ __("Schedule") }}</div>
                 </div>
-                <div class="tp-field">
-                    <label>{{ __("Status") }}</label>
-                    <select name="status">
-                        @php $selectedStatus = old('status', $row->status ?? 'draft'); @endphp
-                        @foreach(['draft','sent','paid','accepted','cancelled','expired'] as $st)
-                            <option value="{{ $st }}" {{ $selectedStatus == $st ? 'selected' : '' }}>{{ ucfirst($st) }}</option>
-                        @endforeach
-                    </select>
-                </div>
+                @if($row->exists)<div class="tp-field"><label>{{ __("Number") }}</label><div style="font-weight:700;">{{ $row->invoice_number }} <span style="font-weight:500;color:#999;">· {{ $row->status_label }}</span></div></div>@endif
                 <div class="tp-field">
                     <label>{{ __("Issue Date") }}</label>
                     <input type="date" name="issue_date" value="{{ old('issue_date', $row->issue_date ? $row->issue_date->format('Y-m-d') : date('Y-m-d')) }}">
                 </div>
                 <div class="tp-field">
                     <label>{{ __("Due Date") }}</label>
-                    <input type="date" name="due_date" value="{{ old('due_date', $row->due_date ? $row->due_date->format('Y-m-d') : '') }}">
+                    <input type="date" name="due_date" id="tp-due" value="{{ old('due_date', $row->due_date ? $row->due_date->format('Y-m-d') : '') }}">
+                    <div style="display:flex;gap:6px;margin-top:7px;flex-wrap:wrap;">
+                        @foreach([0 => __('On receipt'), 7 => __('7 days'), 14 => __('14 days'), 30 => __('30 days')] as $d => $l)
+                        <button type="button" class="tp-quick" onclick="setDue({{ $d }})" style="border:1.5px solid #e4e4e4;background:#fff;border-radius:99px;padding:3px 11px;font-size:11.5px;font-weight:600;cursor:pointer;">{{ $l }}</button>
+                        @endforeach
+                    </div>
                 </div>
                 <div class="tp-field" id="tp-valid-days-wrap" style="{{ ($row->type ?? $type) !== 'quotation' ? 'display:none' : '' }}">
                     <label>{{ __("Valid For (days)") }}</label>
-                    <input type="number" name="valid_days" value="{{ old('valid_days', $row->valid_days ?? setting_item('tourpay_default_valid_days', 30)) }}" min="1">
+                    <input type="number" name="valid_days" value="{{ old('valid_days', $row->valid_days ?? ($settings->default_valid_days ?: 14)) }}" min="1">
                 </div>
             </div>
 
@@ -466,21 +506,59 @@ function selectTemplate(n) {
 }
 
 function recalc() {
-    var total = 0;
+    var sum = 0;
     document.querySelectorAll('.tp-item-row').forEach(function(row) {
         var qty   = parseFloat(row.querySelector('.tp-qty').value)   || 0;
         var price = parseFloat(row.querySelector('.tp-price').value) || 0;
         var t     = Math.round(qty * price * 100) / 100;
-        total    += t;
+        sum      += t;
         var td = row.querySelector('.tp-item-total');
         if (td) td.textContent = t.toFixed(2);
     });
-    var taxRate   = parseFloat(document.getElementById('tp-tax-rate').value) || 0;
-    var taxAmount = Math.round((total - (total / (1 + taxRate / 100))) * 100) / 100;
-    var exVat     = Math.round((total - taxAmount) * 100) / 100;
-    document.getElementById('tp-subtotal').textContent = exVat.toFixed(2);
-    document.getElementById('tp-tax').textContent      = taxAmount.toFixed(2);
-    document.getElementById('tp-total').textContent    = total.toFixed(2);
+    var rate = 0; document.querySelectorAll('.tp-tax-rate').forEach(function (i) { rate += parseFloat(i.value) || 0; });
+    var disc = Math.min(parseFloat(document.getElementById('tp-discount').value) || 0, sum);
+    var excl = document.getElementById('tp-tax-mode').value === 'exclusive';
+    var base = Math.max(0, sum - disc), tax, total, ex;
+    if (excl) { tax = Math.round(base * rate) / 100; total = Math.round((base + tax) * 100) / 100; ex = sum; }
+    else      { tax = Math.round((base - base / (1 + rate / 100)) * 100) / 100; total = base; ex = Math.round((base - tax) * 100) / 100; }
+    var f = function (id, v) { document.getElementById(id).textContent = v.toFixed(2); };
+    f('tp-items-sum', sum); f('tp-discount-show', -disc); f('tp-subtotal', ex); f('tp-tax', tax); f('tp-total', total);
+    document.getElementById('tp-row-discount').style.display = disc > 0 ? '' : 'none';
+    document.getElementById('tp-ex-label').textContent = excl ? '{{ __("Subtotal") }}' : '{{ __("Excl. VAT") }}';
+    document.getElementById('tp-tax-rate-label').textContent = rate;
+}
+
+var taxIndex = {{ count($taxRows ?? []) + 20 }};
+function addTax() {
+    var i = taxIndex++, d = document.createElement('div');
+    d.className = 'tp-tax-row'; d.style.cssText = 'display:flex;gap:6px;margin-bottom:6px;';
+    d.innerHTML = '<input type="text" name="tax_lines[' + i + '][name]" placeholder="{{ __("Name") }}" style="flex:1;min-width:0;"><input type="number" name="tax_lines[' + i + '][rate]" min="0" max="100" step="any" class="tp-tax-rate" placeholder="%" style="width:72px;" oninput="recalc()"><button type="button" onclick="this.parentNode.remove();recalc();" style="border:0;background:none;color:#bbb;cursor:pointer;">✕</button>';
+    document.getElementById('tp-taxes').appendChild(d); d.querySelector('input').focus();
+}
+
+function addFromCatalogue(sel) {
+    var o = sel.options[sel.selectedIndex]; if (!sel.value) return;
+    var rows = document.querySelectorAll('.tp-item-row'), last = rows[rows.length - 1];
+    var empty = last && !last.querySelector('input[name$="[name]"]').value.trim();
+    if (!empty) { addItem(); rows = document.querySelectorAll('.tp-item-row'); last = rows[rows.length - 1]; }
+    last.querySelector('input[name$="[name]"]').value = o.dataset.name;
+    last.querySelector('.tp-price').value = o.dataset.price;
+    sel.selectedIndex = 0; recalc();
+}
+
+function setDue(days) {
+    var issue = document.querySelector('input[name="issue_date"]').value;
+    var d = issue ? new Date(issue + 'T00:00:00') : new Date();
+    d.setDate(d.getDate() + days);
+    document.getElementById('tp-due').value = d.toISOString().slice(0, 10);
+}
+
+function pickCustomer(sel) {
+    var o = sel.options[sel.selectedIndex];
+    document.getElementById('tp-customer-id').value = sel.value;
+    if (!sel.value) return;
+    var set = function (n, v) { var el = document.querySelector('[name="' + n + '"]'); if (el && v) el.value = v; };
+    set('client_name', o.dataset.name); set('client_email', o.dataset.email); set('client_phone', o.dataset.phone); set('client_country', o.dataset.country);
 }
 
 function addItem() {
@@ -494,7 +572,7 @@ function addItem() {
         + '<input type="text" name="items['+i+'][description]" placeholder="{{ __("Optional detail") }}" class="tp-item-sub-input">'
         + '</td>'
         + '<td><input type="number" name="items['+i+'][quantity]"   value="1" min="0" step="any" class="tp-qty"   oninput="recalc()"></td>'
-        + '<td><input type="number" name="items['+i+'][unit_price]" value="0" min="0" step="any" class="tp-price" oninput="recalc()"></td>'
+        + '<td><input type="number" name="items['+i+'][unit_price]" value="0" step="any" class="tp-price" oninput="recalc()"></td>'
         + '<td><div class="tp-item-total-cell tp-item-total">0.00</div></td>'
         + '<td><button type="button" class="tp-remove-item" onclick="removeItem(this)"><i class="icofont-trash"></i></button></td>';
     body.appendChild(tr);

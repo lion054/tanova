@@ -56,4 +56,16 @@ class PortalExtrasController extends Controller
     {
         return view('vendor.help.index', ['page_title' => __('Operations Manual')]);
     }
+
+    public function apiDocs(\Illuminate\Http\Request $request)
+    {
+        $vendorId = resolve_current_vendor_id();
+
+        return view('vendor.docs.index', [
+            'page_title' => __('API & Website Docs'),
+            'base_url'   => rtrim(url('/api/v'), '/'),
+            'key_count'  => \Modules\Vendor\Models\VendorApiKey::where('vendor_id', $vendorId)->where('active', true)->count(),
+            'tour_count' => Tour::where('author_id', $vendorId)->where('status', 'publish')->count(),
+        ] + \Modules\Api\Docs\Reference::page((string) $request->query('section', '')));
+    }
 }

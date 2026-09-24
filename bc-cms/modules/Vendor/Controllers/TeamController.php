@@ -67,7 +67,8 @@ class TeamController extends FrontendController
     }
 
     public function reSendRequest(Request $request,$id){
-        $vendor_team = VendorTeam::find($id);
+        // Only the vendor's own invitations: an id from someone else's list must find nothing.
+        $vendor_team = VendorTeam::where('vendor_id', auth()->id())->find($id);
         if(!empty($vendor_team)){
             VendorTeamRequestCreatedEvent::dispatch($vendor_team);
         }

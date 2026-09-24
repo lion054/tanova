@@ -25,7 +25,7 @@ class VendorWebhookController extends Controller
         $request->validate([
             'url'    => 'required|url|max:500',
             'events' => 'required|array|min:1',
-            'events.*' => 'in:' . implode(',', VendorWebhook::$supportedEvents),
+            'events.*' => 'in:' . implode(',', \Modules\Vendor\Services\WebhookEvents::types()),
         ]);
 
         $webhook = VendorWebhook::generate(Auth::id(), $request->url, $request->events);
@@ -43,7 +43,7 @@ class VendorWebhookController extends Controller
         $request->validate([
             'url'      => 'sometimes|url|max:500',
             'events'   => 'sometimes|array|min:1',
-            'events.*' => 'in:' . implode(',', VendorWebhook::$supportedEvents),
+            'events.*' => 'in:' . implode(',', \Modules\Vendor\Services\WebhookEvents::types()),
             'active'   => 'sometimes|boolean',
         ]);
 

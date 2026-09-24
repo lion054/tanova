@@ -87,7 +87,14 @@ class VendorIdempotency
 
         $response = $next($request);
 
-        // Persist the outcome so retries replay it. Only cache final responses.
+        // A server error or a rate-limit answer is not an outcome to replay: let the retry run for real.
+        if ($response->getStatusCode() >= 500 || $response->getStatusCode() === 429) {
+            DB::table(self::TABLE)->where('vendor_id', $vendorId)->where('idempotency_key', $key)->delete();
+
+            return $response;
+        }
+
+        // Persist the outcome so retries replay it.
         DB::table(self::TABLE)
             ->where('vendor_id', $vendorId)
             ->where('idempotency_key', $key)

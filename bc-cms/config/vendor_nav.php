@@ -25,7 +25,7 @@ return [
         ],
         'bookings' => [
             'label' => 'Bookings',
-            'keys'  => ['vendor-bookings', 'checkin', 'waitlist', 'booking-history', 'enquiry'],
+            'keys'  => ['vendor-bookings', 'departures', 'checkin', 'waitlist', 'customers', 'booking-history', 'enquiry'],
         ],
         'catalog' => [
             'label'  => 'Catalog',
@@ -34,21 +34,23 @@ return [
                 'stays'      => ['label' => 'Stays', 'keys' => ['hotel', 'space']],
                 'activities' => ['label' => 'Activities', 'keys' => ['tour', 'event']],
                 'transport'  => ['label' => 'Transport', 'keys' => ['car', 'boat', 'flight']],
+                'dining'     => ['label' => 'Dining', 'keys' => ['meals', 'restaurants']],
+                'overview'   => ['label' => 'All catalogs', 'keys' => ['catalogs']],
                 'access'     => ['label' => 'Access', 'keys' => ['visa']],
                 'pricing'    => ['label' => 'Pricing & Add-ons', 'keys' => ['pricing_tiers', 'upsells']],
             ],
         ],
         'tanova' => [
             'label' => 'Tanova',
-            'keys'  => ['marketplace', 'inbox'],
+            'keys'  => ['marketplace', 'itineraries', 'inbox'],
         ],
         'engage' => [
             'label' => 'Engage',
-            'keys'  => ['loyalty', 'scheduled_messages', 'occasions', 'campaigns', 'coupon', 'news'],
+            'keys'  => ['loyalty', 'scheduled_messages', 'occasions', 'holidays', 'campaigns', 'coupon', 'news'],
         ],
         'insights' => [
             'label' => 'Insights',
-            'keys'  => ['analytics', 'booking_report', 'tracking'],
+            'keys'  => ['analytics', 'shelves', 'booking_report', 'tracking'],
         ],
         'finance' => [
             'label' => 'Finance',
@@ -56,7 +58,7 @@ return [
         ],
         'settings' => [
             'label' => 'Settings',
-            'keys'  => ['go_live', 'subscription', 'api_keys', 'team', 'integrations', 'verification', '2fa', 'help'],
+            'keys'  => ['go_live', 'subscription', 'api_keys', 'api_docs', 'team', 'integrations', 'operators', 'ai_plan', 'verification', '2fa', 'help'],
         ],
     ],
 

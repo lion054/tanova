@@ -155,9 +155,37 @@
 .tp-badge-paid      { background: #f0fdf4; color: #16a34a; }
 .tp-badge-accepted  { background: #f0fdf4; color: #16a34a; }
 .tp-badge-cancelled { background: #fff1f2; color: #e11d48; }
+.tp-badge-part_paid { background: #fff7ed; color: #c2410c; }
+.tp-badge-overdue   { background: #fff1f2; color: #e11d48; }
+.tp-badge-declined  { background: #fff1f2; color: #e11d48; }
+.tp-badge-void      { background: #f4f4f5; color: #71717a; text-decoration: line-through; }
+.tp-tabs { display: flex; gap: 4px; flex-wrap: wrap; margin: 0 0 14px; border-bottom: 1px solid #ebebeb; }
+.tp-tab { padding: 9px 13px; font-size: 13px; font-weight: 600; color: #777 !important; text-decoration: none !important; border-bottom: 2px solid transparent; margin-bottom: -1px; display: inline-flex; gap: 7px; align-items: center; }
+.tp-tab:hover { color: #0a0a0a !important; }
+.tp-tab.on { color: #0a0a0a !important; border-bottom-color: #0a0a0a; }
+.tp-tab .n { font-size: 11px; background: #f4f4f5; color: #71717a; border-radius: 99px; padding: 1px 7px; }
+.tp-tab.on .n { background: #0a0a0a; color: #fff; }
+.tp-tab.warn .n { background: #fff1f2; color: #e11d48; }
+.tp-due-late { color: #e11d48; font-size: 11px; font-weight: 600; }
+.tp-bal { font-weight: 700; }
+.tp-bal.zero { color: #16a34a; font-weight: 600; }
+.tp-modal-bg { position: fixed; inset: 0; background: rgba(10,10,10,.45); display: none; align-items: center; justify-content: center; z-index: 10050; padding: 16px; }
+.tp-modal-bg.open { display: flex; }
+.tp-modal { background: #fff; border-radius: 12px; width: 100%; max-width: 480px; max-height: 92vh; overflow: auto; padding: 22px 22px 18px; }
+.tp-modal.wide { max-width: 640px; }
+.tp-modal h3 { margin: 0 0 4px; font-size: 17px; font-weight: 800; letter-spacing: -.02em; }
+.tp-modal .sub { color: #888; font-size: 12.5px; margin-bottom: 14px; }
+.tp-modal label { display: block; font-size: 11px; font-weight: 700; color: #777; text-transform: uppercase; letter-spacing: .05em; margin: 12px 0 4px; }
+.tp-modal input, .tp-modal select, .tp-modal textarea { width: 100%; padding: 9px 11px; border: 1.5px solid #e4e4e4; border-radius: 7px; font-size: 13.5px; background: #fff; }
+.tp-modal input:focus, .tp-modal select:focus, .tp-modal textarea:focus { outline: none; border-color: #0a0a0a; }
+.tp-modal .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.tp-modal .foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
+.tp-modal .hint { font-size: 11.5px; color: #999; margin-top: 4px; }
 .tp-badge-expired   { background: #fffbeb; color: #d97706; }
 .tp-badge-invoice   { background: #eef2ff; color: #4f46e5; }
 .tp-badge-quotation { background: #fdf4ff; color: #9333ea; }
+.tp-badge-credit_note { background: #f0f9ff; color: #0369a1; }
+.tp-badge-credited { background: #f4f4f5; color: #71717a; }
 
 /* Row action menu */
 .tp-row-menu { display: inline-flex; }
@@ -226,6 +254,10 @@
         <a href="{{ route('tourpay.vendor.create', ['type' => 'quotation']) }}" class="tp-btn tp-btn-ghost">
             <i class="icofont-file-document"></i> {{ __("Quotation") }}
         </a>
+        <a href="{{ route('tourpay.vendor.reports') }}" class="tp-btn tp-btn-ghost"><i class="icofont-chart-bar-graph"></i> {{ __("Reports") }}</a>
+        <a href="{{ route('tourpay.vendor.bills') }}" class="tp-btn tp-btn-ghost"><i class="icofont-cart"></i> {{ __("Supplier bills") }}</a>
+        <a href="{{ route('tourpay.vendor.settings.page') }}#payments" class="tp-btn tp-btn-ghost"><i class="icofont-credit-card"></i> {{ __("Online payments") }}</a>
+        <a href="{{ route('tourpay.vendor.settings.page') }}" class="tp-btn tp-btn-ghost"><i class="icofont-ui-settings"></i> {{ __("Settings") }}</a>
         <a href="{{ route('tourpay.vendor.create', ['type' => 'invoice']) }}" class="tp-btn tp-btn-primary">
             <i class="icofont-plus"></i> {{ __("New Invoice") }}
         </a>
@@ -251,7 +283,8 @@
                 @endforeach
             </div>
         @endif
-        <div class="tp-stat-sub">{{ __("Sent & drafts") }}</div>
+        @if($stats["outstanding_base"] !== null)<div class="tp-stat-sub" style="font-weight:700;color:#0a0a0a;">≈ {{ $settings->base_currency }} {{ number_format($stats["outstanding_base"], 0) }}</div>@endif
+        <div class="tp-stat-sub">{{ __("Awaiting payment") }}</div>
     </div>
 
     {{-- Paid this month: per-currency --}}
@@ -269,23 +302,44 @@
                 @endforeach
             </div>
         @endif
+        @if($stats["paid_month_base"] !== null)<div class="tp-stat-sub" style="font-weight:700;color:#0a0a0a;">≈ {{ $settings->base_currency }} {{ number_format($stats["paid_month_base"], 0) }}</div>@endif
         <div class="tp-stat-sub">{{ now()->format('F Y') }}</div>
     </div>
 
     <div class="tp-stat">
-        <div class="tp-stat-label"><i class="icofont-edit-alt"></i> {{ __("Drafts") }}</div>
-        <div class="tp-stat-amount">{{ $stats['drafts'] }}</div>
-        <div class="tp-stat-sub">{{ __("Unsent documents") }}</div>
+        <div class="tp-stat-label"><i class="icofont-warning"></i> {{ __("Overdue") }}</div>
+        @if($stats['overdue_by_cur']->isEmpty())
+            <div class="tp-cur-empty">—</div>
+        @else
+            <div class="tp-cur-rows">
+                @foreach($stats['overdue_by_cur'] as $cur)
+                <div class="tp-cur-row"><span class="tp-cur-code">{{ $cur->currency }}</span><span class="tp-cur-val" style="color:#e11d48">{{ number_format($cur->total, 0) }}</span></div>
+                @endforeach
+            </div>
+        @endif
+        @if($stats["overdue_base"] !== null)<div class="tp-stat-sub" style="font-weight:700;color:#e11d48;">≈ {{ $settings->base_currency }} {{ number_format($stats["overdue_base"], 0) }}</div>@endif
+        <div class="tp-stat-sub">{{ __("Past their due date") }}</div>
     </div>
     <div class="tp-stat">
         <div class="tp-stat-label"><i class="icofont-document-folder"></i> {{ __("All Documents") }}</div>
         <div class="tp-stat-amount">{{ $stats['total'] }}</div>
-        <div class="tp-stat-sub">{{ __("Invoices & quotations") }}</div>
+        <div class="tp-stat-sub">{{ trans_choice(":n draft|:n drafts", $stats["drafts"], ["n" => $stats["drafts"]]) }}</div>
     </div>
+</div>
+
+{{-- ── Tabs ── --}}
+@php
+    $tabLabels = ['all' => __('All'), 'draft' => __('Drafts'), 'awaiting' => __('Awaiting payment'), 'overdue' => __('Overdue'), 'part_paid' => __('Part paid'), 'paid' => __('Paid'), 'quotations' => __('Quotations'), 'void' => __('Void')];
+@endphp
+<div class="tp-tabs">
+    @foreach($tabLabels as $k => $label)
+        <a href="{{ route('tourpay.vendor.index', array_filter(['tab' => $k === 'all' ? null : $k, 's' => request('s')])) }}" class="tp-tab {{ $tab === $k ? 'on' : '' }} {{ $k === 'overdue' && $counts[$k] > 0 ? 'warn' : '' }}">{{ $label }} <span class="n">{{ $counts[$k] }}</span></a>
+    @endforeach
 </div>
 
 {{-- ── Filters ── --}}
 <form method="GET" action="{{ route('tourpay.vendor.index') }}">
+@if($tab !== 'all')<input type="hidden" name="tab" value="{{ $tab }}">@endif
 <div class="tp-filters">
     <div class="tp-filter-field tf-search">
         <i class="icofont-search"></i>
@@ -296,13 +350,14 @@
             <option value="">{{ __("All Types") }}</option>
             <option value="invoice"   {{ request('type')=='invoice'   ? 'selected' : '' }}>{{ __("Invoice") }}</option>
             <option value="quotation" {{ request('type')=='quotation' ? 'selected' : '' }}>{{ __("Quotation") }}</option>
+            <option value="credit_note" {{ request('type')=='credit_note' ? 'selected' : '' }}>{{ __("Credit note") }}</option>
         </select>
     </div>
     <div class="tp-filter-field tf-select">
         <select name="status">
             <option value="">{{ __("All Statuses") }}</option>
-            @foreach(['draft','sent','paid','accepted','cancelled','expired'] as $st)
-                <option value="{{ $st }}" {{ request('status')==$st ? 'selected' : '' }}>{{ ucfirst($st) }}</option>
+            @foreach(['draft','sent','part_paid','paid','overdue','credited','accepted','declined','expired','void'] as $st)
+                <option value="{{ $st }}" {{ request('status')==$st ? 'selected' : '' }}>{{ ucfirst(str_replace('_', ' ', $st)) }}</option>
             @endforeach
         </select>
     </div>
@@ -345,7 +400,8 @@
                 <th>{{ __("Reference") }}</th>
                 <th>{{ __("Client") }}</th>
                 <th>{{ __("Type") }}</th>
-                <th>{{ __("Amount") }}</th>
+                <th>{{ __("Total") }}</th>
+                <th>{{ __("Balance due") }}</th>
                 <th>{{ __("Status") }}</th>
                 <th></th>
             </tr>
@@ -371,11 +427,23 @@
                         </div>
                     </div>
                 </td>
-                <td><span class="tp-badge tp-badge-{{ $row->type }}">{{ ucfirst($row->type) }}</span></td>
+                <td><span class="tp-badge tp-badge-{{ $row->type }}">{{ ucfirst(str_replace('_', ' ', $row->type)) }}</span></td>
                 <td>
-                    <div class="tp-amount"><span class="tp-currency">{{ $row->currency }}</span>{{ number_format($row->total, 2) }}</div>
+                    <div class="tp-amount"><span class="tp-currency">{{ $row->currency }}</span>{{ $row->type === 'credit_note' ? '−' : '' }}{{ number_format($row->total, 2) }}</div>
                 </td>
-                <td><span class="tp-badge tp-badge-{{ $row->status }}">{{ ucfirst($row->status) }}</span></td>
+                <td>
+                    @if($row->type === 'credit_note')
+                        <span style="color:#bbb">—</span>@if($row->parent_id)<div class="tp-ref-date">{{ __('against invoice') }}</div>@endif
+                    @elseif($row->type === 'quotation')
+                        <span style="color:#bbb">—</span>@if($row->valid_days && $row->issue_date)<div class="tp-ref-date">{{ __('valid until :d', ['d' => $row->issue_date->copy()->addDays($row->valid_days)->format('d M')]) }}</div>@endif
+                    @elseif(in_array($row->status, ['void']))
+                        <span style="color:#bbb">—</span>
+                    @else
+                        <div class="tp-bal {{ $row->balance() <= 0 ? 'zero' : '' }}"><span class="tp-currency">{{ $row->currency }}</span>{{ number_format($row->balance(), 2) }}</div>
+                        @if($row->due_date)<div class="{{ $row->isOverdue() ? 'tp-due-late' : 'tp-ref-date' }}">{{ $row->isOverdue() ? __(':n days late', ['n' => (int) $row->due_date->diffInDays(now())]) : __('due :d', ['d' => $row->due_date->format('d M')]) }}</div>@endif
+                    @endif
+                </td>
+                <td><span class="tp-badge tp-badge-{{ $row->display_status }}">{{ $row->status_label }}</span>@if($row->viewed_at && in_array($row->status, ['sent','part_paid']))<div class="tp-ref-date">{{ __('viewed') }}</div>@endif</td>
                 <td>
                     <div class="tp-row-menu">
                         <button type="button" class="tp-row-menu-btn" onclick="toggleMenu(this)">···</button>
@@ -383,27 +451,30 @@
                             <a href="{{ route('tourpay.vendor.view', $row->id) }}"><i class="icofont-eye"></i> {{ __("View") }}</a>
                             <a href="{{ route('tourpay.vendor.edit', $row->id) }}"><i class="icofont-edit"></i> {{ __("Edit") }}</a>
                             <a href="{{ route('tourpay.vendor.pdf', $row->id) }}" target="_blank"><i class="icofont-file-pdf"></i> {{ __("Download PDF") }}</a>
-                            @if(!in_array($row->status, ['paid','cancelled']))
+                            <a href="{{ route('tourpay.pay', $row->pay_token) }}" target="_blank"><i class="icofont-external-link"></i> {{ __("Preview as client") }}</a>
+                            <button type="button" onclick="tpCopy('{{ route('tourpay.pay', $row->pay_token) }}')"><i class="icofont-link"></i> {{ __("Copy pay link") }}</button>
+                            @if($row->type === 'invoice' && !in_array($row->status, ['paid','void']) && $row->balance() > 0)
                             <div class="tp-dd-divider"></div>
-                            <form method="POST" action="{{ route('tourpay.vendor.mark-paid', $row->id) }}" style="display:contents;"
-                                  onsubmit="return confirm(tpMarkPaidMsg)">
-                                @csrf
-                                <button type="submit"><i class="icofont-check-circled" style="color:#16a34a;"></i> {{ __("Mark as Paid") }}</button>
-                            </form>
+                            <button type="button" onclick="tpPay({{ $row->id }}, '{{ addslashes($row->invoice_number) }}', '{{ $row->currency }}', {{ $row->balance() }})"><i class="icofont-money" style="color:#16a34a;"></i> {{ __("Record a payment") }}</button>
                             @endif
+                            @if($row->type === 'quotation' && !in_array($row->status, ['void','declined','expired']))
+                            <form method="POST" action="{{ route('tourpay.vendor.convert', $row->id) }}" style="display:contents;">@csrf<button type="submit"><i class="icofont-exchange"></i> {{ __("Convert to invoice") }}</button></form>
+                            @endif
+                            <form method="POST" action="{{ route('tourpay.vendor.duplicate', $row->id) }}" style="display:contents;">@csrf<button type="submit"><i class="icofont-copy"></i> {{ __("Duplicate") }}</button></form>
+                            @if($row->status === 'draft')
                             <div class="tp-dd-divider"></div>
-                            <a href="{{ route('tourpay.vendor.delete', $row->id) }}"
-                               class="tp-dd-danger"
-                               onclick="return confirm('{{ __('Delete this record?') }}')">
-                                <i class="icofont-trash"></i> {{ __("Delete") }}
-                            </a>
+                            <a href="{{ route('tourpay.vendor.delete', $row->id) }}" class="tp-dd-danger" onclick="return confirm('{{ __('Delete this draft?') }}')"><i class="icofont-trash"></i> {{ __("Delete") }}</a>
+                            @elseif($row->status !== 'void')
+                            <div class="tp-dd-divider"></div>
+                            <form method="POST" action="{{ route('tourpay.vendor.void', $row->id) }}" style="display:contents;" onsubmit="return confirm('{{ __('Void this document? It stays on record but no longer counts.') }}')">@csrf<button type="submit" class="tp-dd-danger"><i class="icofont-ban"></i> {{ __("Void") }}</button></form>
+                            @endif
                         </div>
                     </div>
                 </td>
             </tr>
             @empty
             <tr>
-                <td colspan="6">
+                <td colspan="7">
                     <div class="tp-empty">
                         <div class="tp-empty-icon"><i class="icofont-document-folder"></i></div>
                         <div class="tp-empty-title">{{ __("No documents yet") }}</div>
@@ -427,7 +498,38 @@
 
 </div>{{-- .tp --}}
 
+{{-- ── Record a payment ── --}}
+<div class="tp-modal-bg" id="tp-pay" onclick="if(event.target===this)tpClose('tp-pay')">
+  <form class="tp-modal" method="POST" id="tp-pay-form">
+    @csrf
+    <h3>{{ __('Record a payment') }}</h3>
+    <div class="sub" id="tp-pay-sub"></div>
+    <div class="row2">
+      <div><label>{{ __('Amount') }}</label><input type="number" name="amount" id="tp-pay-amount" step="0.01" min="0.01" required></div>
+      <div><label>{{ __('Date') }}</label><input type="date" name="paid_at" value="{{ now()->toDateString() }}" max="{{ now()->toDateString() }}"></div>
+    </div>
+    <label>{{ __('Method') }}</label>
+    <select name="method">
+      @foreach(['bank' => __('Bank transfer (EFT)'), 'cash' => __('Cash'), 'card' => __('Card'), 'mobile_money' => __('Mobile money'), 'paypal' => 'PayPal', 'stripe' => 'Stripe', 'paystack' => 'Paystack', 'other' => __('Other')] as $k => $l)<option value="{{ $k }}">{{ $l }}</option>@endforeach
+    </select>
+    <label>{{ __('Reference') }}</label><input type="text" name="reference" maxlength="191" placeholder="{{ __('Bank reference, receipt number…') }}">
+    <label>{{ __('Note') }}</label><input type="text" name="notes" maxlength="1000">
+    <label style="display:flex;gap:8px;align-items:center;text-transform:none;letter-spacing:0;font-size:13px;color:#555;font-weight:500;"><input type="checkbox" name="send_receipt" value="1" style="width:auto;"> {{ __('E-mail a receipt to the client') }}</label>
+    <div class="foot"><button type="button" class="tp-btn tp-btn-ghost" onclick="tpClose('tp-pay')">{{ __('Cancel') }}</button><button type="submit" class="tp-btn tp-btn-primary">{{ __('Record payment') }}</button></div>
+  </form>
+</div>
+
 <script>
+function tpOpen(id) { document.getElementById(id).classList.add('open'); }
+function tpClose(id) { document.getElementById(id).classList.remove('open'); }
+function tpCopy(url) { (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(function () { alert("{{ __('Pay link copied.') }}"); }, function () { window.prompt("{{ __('Copy this link') }}", url); }); }
+function tpPay(id, number, cur, balance) {
+    document.getElementById('tp-pay-form').action = "{{ url('user/tourpay') }}/" + id + "/payments";
+    document.getElementById('tp-pay-sub').textContent = number + ' · ' + cur + ' ' + balance.toFixed(2) + ' {{ __('still to pay') }}';
+    var a = document.getElementById('tp-pay-amount'); a.value = balance.toFixed(2); a.max = balance.toFixed(2);
+    tpOpen('tp-pay');
+}
+document.addEventListener('keydown', function (e) { if (e.key === 'Escape') document.querySelectorAll('.tp-modal-bg.open').forEach(function (m) { m.classList.remove('open'); }); });
 var tpMarkPaidMsg = "{{ __('Mark this invoice as paid?') }}";
 
 function toggleMenu(btn) {

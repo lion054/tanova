@@ -179,11 +179,16 @@ class TanovaEngine
             ->map(fn($a) => trim(explode(',', $a)[0]))
             ->unique()->values()->toArray();
 
-        $restaurantPool = $coords
-            ? (new OverpassRestaurantService())->forLocation(
-                $coords['lat'], $coords['lng'], $placeName, $hotelAreas
-            )
-            : ['breakfast' => [], 'dinner' => []];
+        // A vendor eats at its own restaurants (the ones it lists in its
+        // catalogue), so what the plan says matches what the app shows. The
+        // shared pool from OpenStreetMap is only for a search with no vendor.
+        $restaurantPool = $vendorId
+            ? $this->vendorRestaurantPool($vendorId, $placeName)
+            : ($coords
+                ? (new OverpassRestaurantService())->forLocation(
+                    $coords['lat'], $coords['lng'], $placeName, $hotelAreas
+                )
+                : ['breakfast' => [], 'dinner' => []]);
 
         $validPackages = [];
         $attempt       = 0;
@@ -225,7 +230,7 @@ class TanovaEngine
         // ENHANCEMENT: Include pre-built tour packages that fit within 70% of requested duration
         // If someone searches for 10 days, show packages that are 7-10 days
         $minDays = max(1, (int)($days * 0.70));
-        $builtPackages = $this->getPackagesByDurationRange($locationId, $minDays, $days, $guests, $budget);
+        $builtPackages = $this->getPackagesByDurationRange($locationId, $minDays, $days, $guests, $budget, $vendorId);
 
         // Merge built packages with AI-generated ones
         $allPackages = array_merge($validPackages, $builtPackages);
@@ -295,11 +300,14 @@ class TanovaEngine
         int   $vendorId = 0
     ): ?array {
         // ALL Zone 1 activities must appear in every package
-        // Fetch all zone 1 activities for location
+        // Fetch all zone 1 activities for location. Vendor-exclusive when a
+        // vendor context is set, shared platform pool otherwise — same rule
+        // generateAccommodation() already applies to bc_tanova_accommodations.
         $zone1Activities = DB::table('bc_tours')
             ->where('location_id', $locationId)
             ->where('status', 'publish')
             ->where('zone', 1)
+            ->when($vendorId, fn($q) => $q->where('author_id', $vendorId))
             ->get();
 
         if ($zone1Activities->isEmpty()) return null;
@@ -542,8 +550,10 @@ class TanovaEngine
             });
         };
 
-        // Tours are shared location assets — not vendor-specific
-        // Vendor isolation applies to accommodations only
+        // Vendor-exclusive when a vendor context is set (bc_tours.author_id),
+        // shared platform pool when it isn't — same rule generateAccommodation()
+        // already applies to bc_tanova_accommodations.vendor_id.
+        $addVendor = fn($q) => $q->when($vendorId, fn($q2) => $q2->where('author_id', $vendorId));
 
         // 1. Preferred + availability + zone
         if (!empty($preferredTypes) && $hasAvail) {
@@ -553,6 +563,7 @@ class TanovaEngine
                 ->where('zone', $zone)
                 ->whereIn('activity_type', $preferredTypes)
                 ->where($addAvail)
+                ->where($addVendor)
                 ->inRandomOrder()->first();
             if ($row) return $row;
         }
@@ -564,6 +575,7 @@ class TanovaEngine
                 ->where('status', 'publish')
                 ->where('zone', $zone)
                 ->where($addAvail)
+                ->where($addVendor)
                 ->inRandomOrder()->first();
             if ($row) return $row;
         }
@@ -574,6 +586,7 @@ class TanovaEngine
                 ->where('location_id', $locationId)
                 ->where('status', 'publish')
                 ->whereIn('activity_type', $preferredTypes)
+                ->where($addVendor)
                 ->inRandomOrder()->first();
             if ($row) return $row;
         }
@@ -583,6 +596,7 @@ class TanovaEngine
             ->where('location_id', $locationId)
             ->where('zone', $zone)
             ->where('status', 'publish')
+            ->where($addVendor)
             ->inRandomOrder()->first();
     }
 
@@ -650,6 +664,44 @@ class TanovaEngine
     // Package result assembler
     // -------------------------------------------------------------------------
 
+    /**
+     * The vendor's restaurants in [$placeName] that are open at breakfast
+     * (07:30) and at dinner (19:30). A restaurant that doesn't record its hours
+     * counts as open, as elsewhere; one that opens at ten is not a breakfast.
+     *
+     * @return array{breakfast: array, dinner: array}
+     */
+    protected function vendorRestaurantPool(int $vendorId, string $placeName): array
+    {
+        $open = function (array $r, int $minute): bool {
+            $to = fn ($v) => is_string($v) && preg_match('/^(\d{1,2}):(\d{2})$/', $v, $m) ? ((int) $m[1]) * 60 + (int) $m[2] : null;
+            $o = $to($r['opens'] ?? null);
+            $c = $to($r['closes'] ?? null);
+            if ($o === null || $c === null) {
+                return true;
+            }
+            return $c > $o ? ($minute >= $o && $minute < $c) : ($minute >= $o || $minute < $c);
+        };
+        $row = fn (array $r) => [
+            'id'        => (int) $r['id'],
+            'name'      => $r['name'],
+            'about'     => $r['summary'] ?? '',
+            'avg_spend' => (float) ($r['price_estimate'] ?? 0),
+            'image'     => null,
+        ];
+
+        $pool = ['breakfast' => [], 'dinner' => []];
+        foreach (RestaurantDetails::forPlace($vendorId, $placeName) as $r) {
+            if ($open($r, 7 * 60 + 30)) {
+                $pool['breakfast'][] = $row($r);
+            }
+            if ($open($r, 19 * 60 + 30)) {
+                $pool['dinner'][] = $row($r);
+            }
+        }
+        return $pool;
+    }
+
     protected function buildPackageResult(
         int    $pkgNum,
         array  $pkg,
@@ -682,6 +734,7 @@ class TanovaEngine
                     'included'    => false,
                     'image'       => $bk['image'] ?? null,
                     'type'        => 'Restaurant',
+                    'restaurant_id' => $bk['id'] ?? null,
                 ];
             }
 
@@ -706,6 +759,11 @@ class TanovaEngine
                     'included'    => false,
                     'image'       => $image,
                     'type'        => $act['activity_type'] ?? '',
+                    // The id the vendor's catalogue uses for it, so the app opens
+                    // the entry it already has (see AppCatalogue).
+                    'service_id'  => isset($act['id'])
+                        ? ActivityPlanning::subtype((int) ($act['is_package'] ?? 0) === 1, (float) ($act['duration'] ?? 0)) . '-' . $act['id']
+                        : null,
                 ];
             }
 
@@ -720,6 +778,7 @@ class TanovaEngine
                     'included'    => false,
                     'image'       => $dn['image'] ?? null,
                     'type'        => 'Restaurant',
+                    'restaurant_id' => $dn['id'] ?? null,
                 ];
             }
 
@@ -766,6 +825,7 @@ class TanovaEngine
             'stay_cost'        => round($acco['cost'], 2),
             'price_per_person' => $guests > 0 ? round($totalCost / $guests, 2) : $totalCost,
             'hotel'            => $acco['hotel'] ? [
+                'id'             => $acco['hotel']['id'] ?? null,
                 'name'           => $acco['hotel']['name'] ?? '',
                 'type'           => $acco['hotel']['stay_type'] ?? 'room',
                 'cost_per_night' => $acco['cost_per_night'],
@@ -919,18 +979,25 @@ class TanovaEngine
         int $minDays,
         int $maxDays,
         int $guests,
-        float $budget
+        float $budget,
+        int $vendorId = 0
     ): array {
         $packages = [];
 
-        // Query multi-day packages (tours with stored itinerary, not single-day activities)
+        // Query multi-day packages (tours with stored itinerary, not single-day activities).
+        // Vendor-exclusive when a vendor context is set, shared platform pool otherwise —
+        // same rule queryActivity()/generateAccommodation() apply elsewhere in this engine.
         $tours = DB::table('bc_tours')
             ->where('status', 'publish')
             ->whereNotNull('itinerary')
-            ->where(function ($q) {
-                $q->where('author_id', 9) // Dare2Travel vendor
-                  ->orWhere('is_package', 1); // Or explicitly marked as package
-            })
+            ->when(
+                $vendorId,
+                fn($q) => $q->where('author_id', $vendorId)->where('is_package', 1),
+                fn($q) => $q->where(function ($q2) {
+                    $q2->where('author_id', 9) // Dare2Travel vendor — legacy seed data without is_package set
+                       ->orWhere('is_package', 1);
+                })
+            )
             ->orderBy('id', 'desc')
             ->limit(50)
             ->get();

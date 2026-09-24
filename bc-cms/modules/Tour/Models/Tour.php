@@ -87,6 +87,8 @@ class Tour extends Bookable
         'include'   => 'array',
         'exclude'   => 'array',
         'itinerary' => 'array',
+        'stages' => 'array',
+        'package_itinerary' => 'array',
         'service_fee' => 'array',
         'surrounding' => 'string',
         'start_date' => 'date',
@@ -274,13 +276,17 @@ class Tour extends Bookable
                         if (isset($person_types_input[$k]) and $person_types_input[$k]['number']) {
                             $type['number'] = $person_types_input[$k]['number'];
                             $person_types[] = $type;
-                            $total += $type['price'] * $type['number'];
+                            // A chosen tier prices the whole party once, below.
+                            $total += $request->attributes->has('vendor_tier_total') ? 0 : $type['price'] * $type['number'];
                             $total_guests += $type['number'];
                         }
                     }
                 }
+                if ($request->attributes->has('vendor_tier_total')) {
+                    $total += (float) $request->attributes->get('vendor_tier_total');
+                }
             } else {
-                $total += $base_price * $request->input('guests');
+                $total += $request->attributes->has('vendor_tier_total') ? (float) $request->attributes->get('vendor_tier_total') : $base_price * $request->input('guests');
                 $total_guests += $request->input('guests');
             }
             if ($meta->enable_extra_price and !empty($meta->extra_price)) {
@@ -331,7 +337,7 @@ class Tour extends Bookable
             }
         } else {
             // Default
-            $total += $base_price * $request->input('guests');
+            $total += $request->attributes->has('vendor_tier_total') ? (float) $request->attributes->get('vendor_tier_total') : $base_price * $request->input('guests');
             $total_guests += $request->input('guests');
         }
         $start_date = new \DateTime($request->input('start_date'));
@@ -457,6 +463,15 @@ class Tour extends Bookable
         $tourDate = $this->tourDateClass::where('target_id', $this->id)->where('start_date', $start_date)->where('active', 1)->first();
         $totalGuests = $this->bookingClass::where('object_id', $this->id)->where('start_date', $start_date)->whereNotIn('status', $this->bookingClass::$notAcceptedStatus)->sum('total_guests');
         $maxGuests = !empty($tourDate->max_guests) ? $tourDate->max_guests : $this->max_people;
+        // A vendor's own app counts seats by the vendor's rules (see TourSeats): the
+        // departure's own capacity or the tour's usual one, with unpaid bookings
+        // holding their seats for a short while. No capacity recorded means no limit,
+        // not "sold out". The website keeps its own way of counting.
+        if (request()->attributes->get('vendor_seat_rules')) {
+            $left = app(\Modules\Vendor\Services\TourSeats::class)->remaining($this, substr((string) $start_date, 0, 10));
+
+            return $left === null ? 1000 : $left;
+        }
         $number = $maxGuests - $totalGuests;
         return $number > 0 ? $number : 0;
     }

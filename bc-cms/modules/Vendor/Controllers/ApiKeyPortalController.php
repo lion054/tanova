@@ -33,6 +33,8 @@ class ApiKeyPortalController extends Controller
             'mode'       => 'nullable|in:live,test',
             'domain'     => 'nullable|string|max:255',
             'rate_limit' => 'nullable|integer|min:0|max:10000000',
+            'scopes'     => 'nullable|array',
+            'scopes.*'   => ['string', \Illuminate\Validation\Rule::in(\App\Support\ApiScopes::all())],   // secret keys only; empty = full access
         ]);
 
         $key = VendorApiKey::generate(
@@ -42,6 +44,7 @@ class ApiKeyPortalController extends Controller
             $request->input('domain'),
             $request->input('type', 'secret'),
             $request->input('mode', 'live'),
+            $request->input('scopes'),
         );
 
         return back()
@@ -106,10 +109,13 @@ class ApiKeyPortalController extends Controller
     public function storeWebhook(Request $request)
     {
         $request->validate([
-            'url'      => 'required|url|max:500',
+            'url'      => 'required|url:https|max:500',
             'events'   => 'required|array|min:1',
-            'events.*' => 'in:' . implode(',', VendorWebhook::$supportedEvents),
+            'events.*' => 'in:' . implode(',', \Modules\Vendor\Services\WebhookEvents::types()),
         ]);
+        if (!\Modules\Vendor\Services\WebhookDeliverer::urlIsSafe($request->url)) {
+            return back()->withInput()->with('error', __('The address must be a public https address (not a private or internal one).'));
+        }
 
         VendorWebhook::generate(Auth::id(), $request->url, $request->events);
 

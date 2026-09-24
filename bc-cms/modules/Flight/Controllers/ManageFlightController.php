@@ -19,6 +19,8 @@ use Modules\User\Models\Plan;
 
 class ManageFlightController extends FrontendController
 {
+    use \App\Traits\FiltersManageList;
+
     protected $flightClass;
     protected $flightTermClass;
     protected $attributesClass;
@@ -52,9 +54,10 @@ class ManageFlightController extends FrontendController
     {
         $this->checkPermission('flight_view');
         $user_id = Auth::id();
-        $rows = $this->flightClass::where("author_id", $user_id)->orderBy('id', 'desc')->with(['airline','airportTo','airportFrom','author']);
+        [$rows, $fb, $perPage] = $this->manageFilters($request, $this->flightClass::where("author_id", $user_id)->with(['airline','airportTo','airportFrom','author']), ['table' => 'bc_flight', 'noun' => __('flights'), 'status' => true]);
         $data = [
-            'rows' => $rows->paginate(5),
+            'rows' => $rows->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'breadcrumbs'        => [
                 [
                     'name' => __('Manage Flights'),
@@ -74,9 +77,10 @@ class ManageFlightController extends FrontendController
     {
         $this->checkPermission('flight_view');
         $user_id = Auth::id();
-        $rows = $this->flightClass::onlyTrashed()->where("author_id", $user_id)->orderBy('id', 'desc');
+        [$rows, $fb, $perPage] = $this->manageFilters($request, $this->flightClass::onlyTrashed()->where("author_id", $user_id), ['table' => 'bc_flight', 'noun' => __('flights'), 'status' => true]);
         $data = [
-            'rows' => $rows->paginate(5),
+            'rows' => $rows->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'recovery'           => 1,
             'breadcrumbs'        => [
                 [

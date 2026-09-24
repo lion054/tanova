@@ -9,6 +9,9 @@ class ModuleProvider extends ModuleServiceProvider
     public function boot()
     {
         $this->loadMigrationsFrom(__DIR__ . '/Migrations');
+        if ($this->app->runningInConsole()) {
+            $this->commands([\Modules\TourPay\Commands\ReconcilePayments::class, \Modules\TourPay\Commands\SendReminders::class]);
+        }
 
         PermissionHelper::add([
             'tourpay_view',

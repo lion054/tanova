@@ -9,7 +9,10 @@ use App\Http\Controllers\GeoController;
  */
 
 // Sitemaps
-Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('sitemap.index');
+// Named api.sitemap.index, not sitemap.index — modules/Core/Routes/web.php
+// already claims that name for its own (web-facing) sitemap.xml route, and
+// route:cache refuses to serialize two routes sharing one name.
+Route::get('sitemap.xml', [SitemapController::class, 'index'])->name('api.sitemap.index');
 Route::get('sitemap-tours.xml', [SitemapController::class, 'tours'])->name('sitemap.tours');
 Route::get('sitemap-hotels.xml', [SitemapController::class, 'hotels'])->name('sitemap.hotels');
 Route::get('sitemap-destinations.xml', [SitemapController::class, 'destinations'])->name('sitemap.destinations');

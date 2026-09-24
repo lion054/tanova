@@ -15,6 +15,13 @@ use Illuminate\Support\Facades\Route;
 
 Route::middleware(['web'])->namespace('\App\Http\Controllers')->group(function () {
 
+    // For uptime monitors: 200 when the database, disk and scheduler are all fine, 503 when any is not.
+    Route::get('/health', function () {
+        $h = \App\Support\Health::run();
+
+        return response()->json($h, $h['ok'] ? 200 : 503)->header('Cache-Control', 'no-store');
+    })->name('health');
+
     Route::get('/intro', fn() => redirect('/admin'));
     Route::get('/', fn() => redirect('/admin'));
     Route::get('/home', fn() => redirect('/admin'))->name('home');

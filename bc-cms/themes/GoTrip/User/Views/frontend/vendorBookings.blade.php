@@ -86,33 +86,7 @@
 </div>
 
 {{-- Filter --}}
-<form method="get" action="">
-    <div class="tp-card">
-        <div class="tp-filter-bar">
-            <div class="tp-input-wrap">
-                <i class="ion ion-ios-search" style="color:#aaa;flex-shrink:0"></i>
-                <input type="text" name="s" value="{{ request('s') }}" placeholder="Search name, email or #ID…">
-            </div>
-            <div class="tp-select-wrap">
-                <select name="status" onchange="this.closest('form').submit()">
-                    <option value="">All Statuses</option>
-                    @foreach($statuses as $st)
-                        <option value="{{$st}}" {{ request('status') == $st ? 'selected' : '' }}>
-                            {{ booking_status_to_text($st) }}
-                        </option>
-                    @endforeach
-                </select>
-            </div>
-            <button type="submit" class="tp-btn-prim">
-                <i class="ion ion-ios-funnel"></i> Filter
-            </button>
-            @if(request('s') || request('status'))
-                <a href="{{ route('user.vendor.bookings') }}" class="tp-btn-ghost">Clear</a>
-            @endif
-            <span style="margin-left:auto;font-size:12px;color:#aaa">{{ $rows->total() }} found</span>
-        </div>
-    </div>
-</form>
+<div class="tp-card"><div style="padding:14px 16px 6px">@include('vendor.partials.filterbar', ['fb' => $fb])</div></div>
 
 {{-- Table --}}
 <div class="tp-card">

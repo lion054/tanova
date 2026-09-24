@@ -61,6 +61,7 @@ class TanovaApiController extends Controller
             'guests'      => 'required|integer|min:1',
             'place_id'    => 'nullable|integer',
             'budget'      => 'nullable|in:budget,mid-range,luxury',
+            'trip_type'   => 'nullable|string|max:100',
             'notes'       => 'nullable|string|max:1000',
         ]);
 
@@ -111,10 +112,14 @@ class TanovaApiController extends Controller
             'start_date'      => $validated['start_date'],
             'end_date'        => $validated['end_date'],
             'guests'          => $validated['guests'],
-            'trip_type'       => $generated['trip_type'] ?? $validated['trip_type'],
-            'itinerary'       => $generated['itinerary'] ?? [],
+            'trip_type'       => $generated['trip_type'] ?? ($validated['trip_type'] ?? null),
+            // TanovaEngine::generate() returns the package list under 'packages', not
+            // 'itinerary' — this key was wrong, so every generated trip was persisted
+            // with an empty itinerary and formatTripResponse() (which reads
+            // $trip->itinerary[0] as the first package) always returned packages: 0.
+            'itinerary'       => $generated['packages'] ?? [],
             'daily_weather'   => $generated['daily_weather'] ?? [],
-            'estimated_price' => $generated['estimated_price'] ?? null,
+            'estimated_price' => $generated['packages'][0]['total_cost'] ?? null,
             'currency'        => $generated['currency'] ?? 'USD',
             'status'          => TanovaTrip::STATUS_CREATED,
             'prompt'          => json_encode($validated),
@@ -172,10 +177,12 @@ class TanovaApiController extends Controller
             ] : null,
             'weather' => $trip->daily_weather ?? [],
             'created_at' => $trip->created_at->toIso8601String(),
-            'links' => [
-                'self' => route('api.v.tanova.show', $trip->id),
-                'replan' => route('api.v.tanova.replan', $trip->id),
-            ],
+            // Built defensively: the vendor route group exposes show but has no
+            // replan endpoint, so a hard route() call here 500s the whole response.
+            'links' => array_filter([
+                'self'   => \Route::has('api.v.tanova.show') ? route('api.v.tanova.show', $trip->id) : null,
+                'replan' => \Route::has('api.v.tanova.replan') ? route('api.v.tanova.replan', $trip->id) : null,
+            ]),
         ];
     }
 }

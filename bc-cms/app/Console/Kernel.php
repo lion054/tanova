@@ -26,21 +26,8 @@ class Kernel extends ConsoleKernel
      */
     protected function schedule(Schedule $schedule)
     {
-        // $schedule->command('inspire')
-        //          ->hourly();
-        $schedule->command(ScanUserPlanExpiredCommand::class)->daily()->withoutOverlapping();
-
-        // Phase 3 — send due lifecycle scheduled messages for all vendors.
-        $schedule->command(\Modules\Vendor\Commands\DispatchScheduledMessages::class)
-            ->dailyAt('08:00')->withoutOverlapping();
-
-        // Delete unbooked Tanova trips older than the configured window
-        $schedule->call(function () {
-            $hours = (int) (setting_item('tanova_window_hours') ?: 24);
-            TanovaTrip::where('status', TanovaTrip::STATUS_CREATED)
-                ->where('created_at', '<', now()->subHours($hours))
-                ->delete();
-        })->hourly()->name('tanova.cleanup')->withoutOverlapping();
+        // Not used: this app boots with Application::configure(), which ignores this class.
+        // Scheduled tasks live in routes/console.php.
     }
 
     /**

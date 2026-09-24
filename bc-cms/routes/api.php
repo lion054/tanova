@@ -36,16 +36,7 @@ Route::group(['prefix' => 'geo'], function () {
 // (Previously this block also referenced TanovaController/ServicesController/
 //  BookingsController which never existed — those broke `php artisan route:list`
 //  and were dead duplicates of api-vendor.php, so they have been removed.)
-Route::prefix('v')->middleware('auth:sanctum')->group(function () {
+// The concierge chat routes (message, messages, close, statistics) now live with the rest of the concierge API in
+// modules/Api/Routes/api-vendor.php, where an API key can reach them. They used to sit behind auth:sanctum here, which a
+// key can never satisfy, so nothing could call them.
 
-    // Tsoka AI Concierge (Chatbot) API
-    Route::prefix('concierge')->group(function () {
-        Route::get('conversations', [\Modules\Vendor\Controllers\ChatbotController::class, 'listConversations']);
-        Route::post('message', [\Modules\Vendor\Controllers\ChatbotController::class, 'sendMessage']);
-        Route::get('conversations/{id}', [\Modules\Vendor\Controllers\ChatbotController::class, 'getConversation']);
-        Route::get('conversations/{id}/messages', [\Modules\Vendor\Controllers\ChatbotController::class, 'getMessages']);
-        Route::post('conversations/{id}/close', [\Modules\Vendor\Controllers\ChatbotController::class, 'closeConversation']);
-        Route::get('statistics', [\Modules\Vendor\Controllers\ChatbotController::class, 'getStatistics']);
-    });
-
-});

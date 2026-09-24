@@ -60,6 +60,7 @@ class OpsPagesSmokeTest extends TestCase
             '/user/concierge',
             '/vendor/go-live',
             '/vendor/help',
+            '/vendor/api-docs',
             '/user/hotel',
             '/user/tour',
             '/user/car',

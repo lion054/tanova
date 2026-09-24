@@ -32,3 +32,14 @@ storage/installed
 public/themes/*/dist
 /.nova
 /.zed
+
+# Runtime files: caches, sessions, compiled views, debugbar captures and logs never belong in the repository
+/storage/framework/cache/*
+/storage/framework/sessions/*
+/storage/framework/views/*
+/storage/framework/testing/*
+/storage/debugbar
+/storage/logs/*
+!/storage/framework/cache/.gitignore
+!/storage/framework/sessions/.gitignore
+!/storage/framework/views/.gitignore

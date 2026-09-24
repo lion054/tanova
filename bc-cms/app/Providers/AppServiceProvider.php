@@ -47,7 +47,9 @@ class AppServiceProvider extends ServiceProvider
     public function boot(Request $request)
     {
 
-        if (env('APP_HTTPS')) {
+        // Behind the proxy the request looks like plain http, so every link (gateway callbacks, e-mail links, the API server address) came out http.
+        // A production site whose APP_URL is https always builds https links.
+        if (env('APP_HTTPS') || (app()->environment('production') && str_starts_with((string) config('app.url'), 'https://'))) {
             \URL::forceScheme('https');
             $this->app['request']->server->set('HTTPS', 'on');
         }

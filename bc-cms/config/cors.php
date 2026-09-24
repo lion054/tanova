@@ -15,7 +15,15 @@
         |
         */
 
-        'paths' => ['api/*', 'sanctum/csrf-cookie'],
+        // Everything under api/ EXCEPT the vendor API (api/v/*): that one answers CORS itself, per business, from the origins
+    // each vendor registered (App\Http\Middleware\VendorCors). A wildcard here would let any website read a leaked publishable key's data.
+    // A new top-level api route group must be added below (a test fails until it is).
+    'paths' => [
+        'sanctum/csrf-cookie',
+        'api/auth/*', 'api/user', 'api/user/*', 'api/vendor/*', 'api/mcp/*', 'api/booking/*', 'api/configs*', 'api/forgot-password', 'api/reset-password', 'api/gateways*', 'api/geo/*',
+        'api/home-page*', 'api/location*', 'api/media*', 'api/news*', 'api/services*', 'api/sitemap*',
+        'api/tour/*', 'api/hotel/*', 'api/car/*', 'api/space/*', 'api/event/*', 'api/boat/*', 'api/flight/*', 'api/visa/*',
+    ],
 
         'allowed_methods' => ['*'],
 

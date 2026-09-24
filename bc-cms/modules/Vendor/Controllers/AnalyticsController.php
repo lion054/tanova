@@ -26,10 +26,10 @@ class AnalyticsController extends Controller
         // and the underlying numbers don't need to be second-fresh. Key is per vendor
         // so no cross-tenant bleed. ?refresh=1 busts it on demand.
         if ($request->boolean('refresh')) {
-            Cache::forget("vendor_analytics_{$vendorId}");
+            Cache::forget("vendor_analytics_v2_{$vendorId}");
         }
 
-        $payload = Cache::remember("vendor_analytics_{$vendorId}", now()->addMinutes(5),
+        $payload = Cache::remember("vendor_analytics_v2_{$vendorId}", now()->addMinutes(5),
             fn () => $this->compute($vendorId));
 
         return view('vendor.analytics.index', $payload + ['page_title' => __('Analytics')]);
@@ -75,7 +75,10 @@ class AnalyticsController extends Controller
         $mcpBooked   = \Pro\Tanova\Models\TanovaTrip::where('source', 'mcp')
             ->where('status', \Pro\Tanova\Models\TanovaTrip::STATUS_BOOKED)->count();
 
+        $occupancy = app(\Modules\Vendor\Services\Occupancy::class)->forVendor($vendorId, 30);
+
         return [
+            'occupancy' => $occupancy,
             'cards' => [
                 'revenue_12m'  => array_sum($revenue),
                 'bookings'     => (clone $accepted())->count(),

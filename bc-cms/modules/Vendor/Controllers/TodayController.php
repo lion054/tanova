@@ -33,7 +33,12 @@ class TodayController extends Controller
             ->get()
             ->keyBy('booking_id');
 
+        // A look ahead: how many trips start on each of the next seven days.
+        $week = (clone $base())->whereDate('start_date', '>', $date)->whereDate('start_date', '<=', \Carbon\Carbon::parse($date)->addDays(7)->toDateString())
+            ->selectRaw('DATE(start_date) as day, COUNT(*) as trips, SUM(total_guests) as guests')->groupBy('day')->get()->keyBy('day');
+
         return view('vendor.today.index', [
+            'week'       => $week,
             'date'       => $date,
             'arrivals'   => $arrivals,
             'departures' => $departures,

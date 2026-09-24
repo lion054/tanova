@@ -19,6 +19,8 @@ use Modules\Booking\Models\Booking;
 
 class ManageTourController extends FrontendController
 {
+    use \App\Traits\FiltersManageList;
+
     protected $tourClass;
     protected $tourTranslationClass;
     protected $tourCategoryClass;
@@ -56,9 +58,10 @@ class ManageTourController extends FrontendController
     {
         $this->checkPermission('tour_view');
         $user_id = Auth::id();
-        $list_tour = $this->tourClass::where("author_id", $user_id)->orderBy('id', 'desc');
+        [$list_tour, $fb, $perPage] = $this->manageFilters($request, $this->tourClass::where("author_id", $user_id), ['table' => 'bc_tours', 'noun' => __('tours'), 'status' => true, 'price' => true, 'category' => ['table'=>'bc_tour_category']]);
         $data = [
-            'rows'        => $list_tour->paginate(20),
+            'rows'        => $list_tour->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'breadcrumbs' => [
                 [
                     'name' => __('Manage Tours'),
@@ -78,9 +81,10 @@ class ManageTourController extends FrontendController
     {
         $this->checkPermission('tour_view');
         $user_id = Auth::id();
-        $list_tour = $this->tourClass::onlyTrashed()->where("author_id", $user_id)->orderBy('id', 'desc');
+        [$list_tour, $fb, $perPage] = $this->manageFilters($request, $this->tourClass::onlyTrashed()->where("author_id", $user_id), ['table' => 'bc_tours', 'noun' => __('tours'), 'status' => true, 'price' => true, 'category' => ['table'=>'bc_tour_category']]);
         $data = [
-            'rows'        => $list_tour->paginate(20),
+            'rows'        => $list_tour->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'recovery'           => 1,
             'breadcrumbs' => [
                 [

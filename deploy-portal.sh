@@ -53,27 +53,52 @@ $SSH "
 "
 
 # ── Step 2: Sync bc-cms (additive; preserves .env, vendor, storage) ─
+# NOTE: the exclude patterns below are ROOT-ANCHORED with a leading slash on
+# purpose. An unanchored 'vendor/' matches a directory of that name at ANY depth,
+# which silently excluded resources/views/vendor/ — every vendor-portal Blade view —
+# and shipped code whose views were missing (500s at runtime, nothing at deploy time).
+# Only 'node_modules' stays unanchored: there we DO want it gone at every depth.
 echo "→ Step 2: Syncing bc-cms code..."
 rsync -az --info=stats1 -e "$RSH" \
     --exclude='.git' \
     --exclude='.env' \
-    --exclude='vendor/' \
+    --exclude='/vendor/' \
     --exclude='node_modules/' \
-    --exclude='storage/framework/sessions/' \
-    --exclude='storage/framework/cache/' \
-    --exclude='storage/framework/views/' \
-    --exclude='storage/debugbar/' \
-    --exclude='storage/logs/' \
+    --exclude='/storage/framework/sessions/' \
+    --exclude='/storage/framework/cache/' \
+    --exclude='/storage/framework/views/' \
+    --exclude='/storage/debugbar/' \
+    --exclude='/storage/logs/' \
     "$LOCAL_CMS/" "${SERVER_USER}@${SERVER_IP}:${REMOTE_CMS}/"
 echo "  ✓ code synced"
 
-# ── Step 3: Artisan: migrate + clear caches ─────────────────
-echo "→ Step 3: Migrations + cache clear..."
+# ── Step 2b: catalogue photos (additive) ─────────────────────
+# The web root (public_html) sits beside bc-cms, so the code sync above never
+# carries photos. The app shows the portal's photos, so the ones the catalogue
+# points at have to be on the server. Additive: nothing there is removed.
+echo "→ Step 2b: Syncing catalogue photos..."
+rsync -az --info=stats1 -e "$RSH" \
+    "${SCRIPT_DIR}/public_html/uploads/tsokanew/" \
+    "${SERVER_USER}@${SERVER_IP}:${REMOTE_ROOT}/public_html/uploads/tsokanew/"
+echo "  ✓ photos synced"
+
+# ── Step 3: Artisan: migrate + rebuild production caches ────
+# optimize:clear first (stale caches from the previous deploy would
+# otherwise mask config/route changes this deploy just shipped), then
+# rebuild config/route/view caches — skipping this after clearing left
+# the app running fully uncached until the next manual pass.
+echo "→ Step 3: Migrations + rebuilding caches..."
 $SSH "
     cd ${REMOTE_CMS}
+    # vendor/ is never synced; bring it to what composer.lock says (a no-op when nothing changed).
+    # --ignore-platform-req=php: a few locked packages are not yet tagged for PHP 8.5 although they run on it.
+    composer install --no-interaction --optimize-autoloader --ignore-platform-req=php 2>&1 | tail -3
     php artisan migrate --force
     php artisan optimize:clear
-    echo '  ✓ migrated + caches cleared'
+    php artisan config:cache
+    php artisan route:cache
+    php artisan view:cache
+    echo '  ✓ migrated + caches rebuilt'
 "
 
 # ── Step 4: Restart PM2 process ──────────────────────────────

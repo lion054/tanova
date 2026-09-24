@@ -6,6 +6,7 @@ Route::group(['prefix'=>config('booking.booking_route_prefix')],function(){
     Route::post('/doCheckout','BookingController@doCheckout')->name('booking.doCheckout');
     Route::get('/confirm/{gateway}','BookingController@confirmPayment')->name('booking.confirm-payment');
     Route::get('/cancel/{gateway}','BookingController@cancelPayment');
+    Route::get('/return/{code}','BookingController@appReturn');
     Route::get('/{code}','BookingController@detail');
     Route::get('/{code}/checkout','BookingController@checkout')->name('booking.checkout');
     Route::get('/{code}/check-status','BookingController@checkStatusCheckout');

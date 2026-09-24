@@ -1,6 +1,6 @@
 @php
     $author       = $row->author ?? null;
-    $company      = $author?->business_name ?: ($author?->name ?: setting_item('site_title', 'Tsoka Travel'));
+    $company      = ($company ?? null) ?: ($author?->business_name ?: ($author?->name ?: setting_item('site_title', 'Tsoka Travel')));
     $logoId       = $author?->avatar_id ?: setting_item('logo_id');
     $logoUrl      = $logoId ? get_file_url($logoId) : null;
     $banking      = $row->banking_details ?? [];
@@ -99,7 +99,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 13px; color: #
         </div>
         <div class="meta-col">
             <div class="meta-label">{{ __("Status") }}</div>
-            <div class="meta-value">{{ ucfirst($row->status) }}</div>
+            <div class="meta-value">{{ $row->status_label }}</div>
             <div class="meta-label" style="margin-top:10px">{{ __("Currency") }}</div>
             <div class="meta-value">{{ $row->currency }}</div>
         </div>
@@ -126,11 +126,29 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 13px; color: #
     <div class="totals-wrap">
         <div class="totals-pad"></div>
         <div class="totals-box">
+            @php $excl = ($row->tax_mode ?? 'inclusive') === 'exclusive'; @endphp
+            @if($excl && $row->tax_rate > 0)
+            <div class="tr"><div class="tl">{{ __("Subtotal") }}</div><div class="tv">{{ $row->currency }} {{ number_format($row->subtotal,2) }}</div></div>
+            @endif
+            @if($row->discount > 0)
+            <div class="tr"><div class="tl">{{ __("Discount") }}</div><div class="tv">− {{ $row->currency }} {{ number_format($row->discount,2) }}</div></div>
+            @endif
             @if($row->tax_rate > 0)
+            @if(!$excl)
             <div class="tr"><div class="tl">{{ __("Excl. VAT") }}</div><div class="tv">{{ $row->currency }} {{ number_format($row->subtotal,2) }}</div></div>
-            <div class="tr"><div class="tl">{{ __("VAT") }} ({{ $row->tax_rate }}% {{ __("incl.") }})</div><div class="tv">{{ $row->currency }} {{ number_format($row->tax_amount,2) }}</div></div>
+            @endif
+            @foreach(($row->tax_lines ?: [['name' => __('VAT'), 'rate' => $row->tax_rate + 0, 'amount' => $row->tax_amount]]) as $tl)
+            <div class="tr"><div class="tl">{{ $tl['name'] }} ({{ $tl['rate'] + 0 }}%{{ $excl ? '' : ' '.__('incl.') }})</div><div class="tv">{{ $row->currency }} {{ number_format($tl['amount'],2) }}</div></div>
+            @endforeach
             @endif
             <div class="tr tr-total"><div class="tl">{{ __("TOTAL DUE") }}</div><div class="tv">{{ $row->currency }} {{ number_format($row->total,2) }}</div></div>
+            @if($row->type === 'invoice' && $row->credit_total > 0)
+            <div class="tr"><div class="tl">{{ __("Credit notes") }}</div><div class="tv">− {{ $row->currency }} {{ number_format($row->credit_total,2) }}</div></div>
+            @endif
+            @if($row->type === 'invoice' && ($row->amount_paid != 0 || $row->credit_total > 0))
+            <div class="tr"><div class="tl">{{ __("Paid") }}</div><div class="tv">− {{ $row->currency }} {{ number_format($row->amount_paid,2) }}</div></div>
+            <div class="tr"><div class="tl"><strong>{{ $row->balance() <= 0 ? __("PAID IN FULL") : __("BALANCE DUE") }}</strong></div><div class="tv"><strong>{{ $row->currency }} {{ number_format(max(0, $row->balance()), 2) }}</strong></div></div>
+            @endif
         </div>
     </div>
     @php $hasBanking = !empty($banking['bank'] ?? $banking['account_name'] ?? null); @endphp

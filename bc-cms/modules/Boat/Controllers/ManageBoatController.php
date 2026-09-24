@@ -19,6 +19,8 @@ use Modules\User\Models\Plan;
 
 class ManageBoatController extends FrontendController
 {
+    use \App\Traits\FiltersManageList;
+
     protected $boatClass;
     protected $boatTranslationClass;
     protected $boatTermClass;
@@ -51,9 +53,10 @@ class ManageBoatController extends FrontendController
     {
         $this->checkPermission('boat_view');
         $user_id = Auth::id();
-        $list_tour = $this->boatClass::where("author_id", $user_id)->orderBy('id', 'desc');
+        [$list_tour, $fb, $perPage] = $this->manageFilters($request, $this->boatClass::where("author_id", $user_id), ['table' => 'bc_boats', 'noun' => __('boats'), 'status' => true, 'price' => true]);
         $data = [
-            'rows' => $list_tour->paginate(20),
+            'rows' => $list_tour->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'breadcrumbs'        => [
                 [
                     'name' => __('Manage Boats'),
@@ -73,9 +76,10 @@ class ManageBoatController extends FrontendController
     {
         $this->checkPermission('boat_view');
         $user_id = Auth::id();
-        $list_tour = $this->boatClass::onlyTrashed()->where("author_id", $user_id)->orderBy('id', 'desc');
+        [$list_tour, $fb, $perPage] = $this->manageFilters($request, $this->boatClass::onlyTrashed()->where("author_id", $user_id), ['table' => 'bc_boats', 'noun' => __('boats'), 'status' => true, 'price' => true]);
         $data = [
-            'rows' => $list_tour->paginate(20),
+            'rows' => $list_tour->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'recovery'           => 1,
             'breadcrumbs'        => [
                 [

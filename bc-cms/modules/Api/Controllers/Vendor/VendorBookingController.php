@@ -8,20 +8,30 @@ use Illuminate\Http\Request;
 use Modules\Booking\Events\BookingUpdatedEvent;
 use Modules\Booking\Models\Booking;
 
-class VendorBookingController extends Controller
+class VendorBookingController extends VendorApiController
 {
     /**
      * List vendor's bookings with optional filters.
      */
     public function index(Request $request): JsonResponse
     {
-        $bookings = Booking::forVendor()
-            ->when($request->status, fn($q, $s) => $q->where('status', $s))
-            ->when($request->object_model, fn($q, $m) => $q->where('object_model', $m))
-            ->when($request->from,  fn($q, $d) => $q->whereDate('created_at', '>=', $d))
-            ->when($request->to,    fn($q, $d) => $q->whereDate('created_at', '<=', $d))
-            ->orderByDesc('id')
-            ->paginate(min($request->integer('per_page', 15), 100));
+        $q = Booking::forVendor();
+        \App\Support\ListQuery::search($q, $request->query('q'), ['first_name', 'last_name', 'email', 'phone', 'code'], 'id');
+        if ($request->filled('status')) {
+            $q->where('status', $request->query('status'));
+        }
+        $service = $request->query('service', $request->query('object_model'));
+        if ($service) {
+            $q->where('object_model', $service);
+        }
+        // created between, and trip starting between
+        foreach ([['from', '>=', 'created_at'], ['to', '<=', 'created_at'], ['trip_from', '>=', 'start_date'], ['trip_to', '<=', 'start_date']] as [$k, $op, $col]) {
+            if ($d = $this->date($request, $k)) {
+                $q->whereDate($col, $op, $d);
+            }
+        }
+        \App\Support\ListQuery::sort($q, $request->query('sort'), ['newest' => ['id', 'desc'], 'oldest' => ['id', 'asc'], 'trip' => ['start_date', 'asc'], 'trip_late' => ['start_date', 'desc'], 'amount' => ['total', 'desc']], 'newest');
+        $bookings = $q->paginate(min($request->integer('per_page', 15), 100));
 
         return response()->json(['data' => $bookings]);
     }
@@ -37,51 +47,5 @@ class VendorBookingController extends Controller
             ->firstOrFail();
 
         return response()->json(['data' => $booking]);
-    }
-
-    /**
-     * Update booking status (confirm, cancel, complete).
-     * Uses model save + event so all side-effects fire:
-     * customer/vendor emails, commission recalc, webhooks.
-     */
-    public function updateStatus(Request $request, string $code): JsonResponse
-    {
-        $request->validate([
-            'status' => 'required|in:confirmed,cancelled,completed',
-        ]);
-
-        $booking = Booking::forVendor()->where('code', $code)->firstOrFail();
-
-        $allowedTransitions = [
-            Booking::PROCESSING => [Booking::CONFIRMED, Booking::CANCELLED],
-            Booking::CONFIRMED  => [Booking::COMPLETED, Booking::CANCELLED],
-            Booking::PAID       => [Booking::CONFIRMED, Booking::CANCELLED],
-            Booking::UNPAID     => [Booking::CANCELLED],
-        ];
-
-        $allowed = $allowedTransitions[$booking->status] ?? [];
-
-        if (!in_array($request->status, $allowed)) {
-            return response()->json([
-                'error' => [
-                    'code'    => 'invalid_transition',
-                    'message' => "Cannot change booking from '{$booking->status}' to '{$request->status}'.",
-                ],
-            ], 422);
-        }
-
-        $booking->status = $request->status;
-        $booking->save();
-
-        // Send status-change emails to admin, vendor, customer
-        $booking->sendStatusUpdatedEmails();
-
-        // Fire event — triggers commission recalc, outbound webhooks
-        event(new BookingUpdatedEvent($booking));
-
-        return response()->json([
-            'message' => 'Booking status updated.',
-            'data'    => ['code' => $booking->code, 'status' => $booking->status],
-        ]);
     }
 }

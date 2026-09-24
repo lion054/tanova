@@ -19,6 +19,8 @@ use Modules\User\Models\Plan;
 
 class ManageSpaceController extends FrontendController
 {
+    use \App\Traits\FiltersManageList;
+
     protected $spaceClass;
     protected $spaceTranslationClass;
     protected $spaceTermClass;
@@ -54,9 +56,10 @@ class ManageSpaceController extends FrontendController
     {
         $this->checkPermission('space_view');
         $user_id = Auth::id();
-        $rows = $this->spaceClass::where("author_id", $user_id)->orderBy('id', 'desc');
+        [$rows, $fb, $perPage] = $this->manageFilters($request, $this->spaceClass::where("author_id", $user_id), ['table' => 'bc_spaces', 'noun' => __('spaces'), 'status' => true, 'price' => true]);
         $data = [
-            'rows' => $rows->paginate(20),
+            'rows' => $rows->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'breadcrumbs'        => [
                 [
                     'name' => __('Manage Spaces'),
@@ -76,9 +79,10 @@ class ManageSpaceController extends FrontendController
     {
         $this->checkPermission('space_view');
         $user_id = Auth::id();
-        $rows = $this->spaceClass::onlyTrashed()->where("author_id", $user_id)->orderBy('id', 'desc');
+        [$rows, $fb, $perPage] = $this->manageFilters($request, $this->spaceClass::onlyTrashed()->where("author_id", $user_id), ['table' => 'bc_spaces', 'noun' => __('spaces'), 'status' => true, 'price' => true]);
         $data = [
-            'rows' => $rows->paginate(20),
+            'rows' => $rows->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'recovery'           => 1,
             'breadcrumbs'        => [
                 [

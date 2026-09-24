@@ -84,7 +84,7 @@ class VendorApiKey extends Model
      * @param  string      $mode    'live' | 'test'
      * @param  string|null $domain  e.g. "dare2travel.com" — auto-registers CORS origin
      */
-    public static function generate(User $vendor, string $name, int $rateLimit = 10000, ?string $domain = null, string $type = 'secret', string $mode = 'live'): static
+    public static function generate(User $vendor, string $name, int $rateLimit = 10000, ?string $domain = null, string $type = 'secret', string $mode = 'live', ?array $scopes = null): static
     {
         $type  = $type === 'publishable' ? 'publishable' : 'secret';
         $mode  = $mode === 'test' ? 'test' : 'live';
@@ -97,7 +97,8 @@ class VendorApiKey extends Model
             'name'       => $name,
             'type'       => $type,
             'mode'       => $mode,
-            'scopes'     => $type === 'publishable' ? ['*:read'] : null,
+            // A publishable key is read-only whatever it is given; a secret key with no scopes has full access.
+            'scopes'     => $type === 'publishable' ? ['*:read'] : (self::cleanScopes($scopes) ?: null),
             'domain'     => $normalised,
             'key'        => null,
             'key_hash'   => hash_hmac('sha256', $plain, config('app.key')),
@@ -173,6 +174,18 @@ class VendorApiKey extends Model
         return "vendor_api_key:{$this->id}:annual_count:" . now()->format('Y');
     }
 
+    /**
+     * Requests used this calendar month. Cached 60s per key.
+     */
+    public function monthlyUsageCount(): int
+    {
+        return Cache::remember("vendor_api_key:{$this->id}:monthly_count:" . now()->format('Y-m'), 60, function () {
+            return $this->usage()
+                ->where('created_at', '>=', now()->startOfMonth())
+                ->count();
+        });
+    }
+
     // ── Usage tracking ───────────────────────────────────────────────────────
 
     public function recordUsage(string $endpoint, string $method, int $statusCode, int $ms): void
@@ -192,6 +205,17 @@ class VendorApiKey extends Model
     }
 
     // ── Rotation ─────────────────────────────────────────────────────────────
+
+    /** Only real scopes, once each; null or empty when none. */
+    public static function cleanScopes(?array $scopes): ?array
+    {
+        if (!$scopes) {
+            return null;
+        }
+        $ok = array_values(array_unique(array_intersect(array_map('strval', $scopes), \App\Support\ApiScopes::all())));
+
+        return $ok ?: null;
+    }
 
     public function rotate(): string
     {

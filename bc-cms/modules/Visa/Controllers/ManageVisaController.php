@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Auth;
 
 class ManageVisaController extends FrontendController
 {
+    use \App\Traits\FiltersManageList;
+
     public function callAction($method, $parameters)
     {
         if (!VisaService::isEnable()) {
@@ -24,9 +26,11 @@ class ManageVisaController extends FrontendController
     public function index(Request $request)
     {
         $this->checkPermission('visa_view');
-        $rows = VisaService::where('author_id', Auth::id())->orderBy('id', 'desc')->paginate(20);
+        [$list, $fb, $perPage] = $this->manageFilters($request, VisaService::where('author_id', Auth::id()), ['table' => 'bc_visa_services', 'noun' => __('visas'), 'status' => true, 'price' => true]);
+        $rows = $list->paginate($perPage)->appends($request->query());
         return view('Visa::frontend.manageVisa.index', [
             'rows'       => $rows,
+            'fb'         => $fb,
             'page_title' => __('Manage Visa Services'),
             'breadcrumbs' => [
                 ['name' => __('Manage Visa Services'), 'url' => route('visa.vendor.index')],
@@ -38,9 +42,11 @@ class ManageVisaController extends FrontendController
     public function recovery(Request $request)
     {
         $this->checkPermission('visa_view');
-        $rows = VisaService::onlyTrashed()->where('author_id', Auth::id())->orderBy('id', 'desc')->paginate(20);
+        [$list, $fb, $perPage] = $this->manageFilters($request, VisaService::onlyTrashed()->where('author_id', Auth::id()), ['table' => 'bc_visa_services', 'noun' => __('visas'), 'status' => true, 'price' => true]);
+        $rows = $list->paginate($perPage)->appends($request->query());
         return view('Visa::frontend.manageVisa.index', [
             'rows'       => $rows,
+            'fb'         => $fb,
             'recovery'   => 1,
             'page_title' => __('Recovery Visa Services'),
             'breadcrumbs' => [

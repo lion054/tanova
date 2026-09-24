@@ -22,6 +22,8 @@ use Modules\User\Models\Plan;
 
 class VendorController extends FrontendController
 {
+    use \App\Traits\FiltersManageList;
+
     protected $hotelClass;
     protected $hotelTranslationClass;
     protected $hotelTermClass;
@@ -58,9 +60,10 @@ class VendorController extends FrontendController
     {
         $this->checkPermission('hotel_view');
         $user_id = Auth::id();
-        $list_hotel = $this->hotelClass::where("author_id", $user_id)->orderBy('id', 'desc');
+        [$list_hotel, $fb, $perPage] = $this->manageFilters($request, $this->hotelClass::where("author_id", $user_id), ['table' => 'bc_hotels', 'noun' => __('hotels'), 'status' => true, 'price' => true]);
         $data = [
-            'rows' => $list_hotel->paginate(20),
+            'rows' => $list_hotel->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'breadcrumbs'        => [
                 [
                     'name' => __('Manage Hotels'),
@@ -80,9 +83,10 @@ class VendorController extends FrontendController
     {
         $this->checkPermission('hotel_view');
         $user_id = Auth::id();
-        $list_hotel = $this->hotelClass::onlyTrashed()->where("author_id", $user_id)->orderBy('id', 'desc');
+        [$list_hotel, $fb, $perPage] = $this->manageFilters($request, $this->hotelClass::onlyTrashed()->where("author_id", $user_id), ['table' => 'bc_hotels', 'noun' => __('hotels'), 'status' => true, 'price' => true]);
         $data = [
-            'rows' => $list_hotel->paginate(20),
+            'rows' => $list_hotel->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'recovery'           => 1,
             'breadcrumbs'        => [
                 [

@@ -1,6 +1,6 @@
 @php
     $author       = $row->author ?? null;
-    $company      = $author?->business_name ?: ($author?->name ?: setting_item('site_title', 'Tsoka Travel'));
+    $company      = ($company ?? null) ?: ($author?->business_name ?: ($author?->name ?: setting_item('site_title', 'Tsoka Travel')));
     $logoId       = $author?->avatar_id ?: setting_item('logo_id');
     $logoUrl      = $logoId ? get_file_url($logoId) : null;
     $banking      = $row->banking_details ?? [];
@@ -130,7 +130,7 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 13px; color: #
             <div class="meta-value">{{ $row->valid_days }} {{ __("days") }}</div>
             @endif
             <div class="meta-label" style="margin-top:12px;">{{ __("Status") }}</div>
-            <div class="meta-value"><strong>{{ ucfirst($row->status) }}</strong></div>
+            <div class="meta-value"><strong>{{ $row->status_label }}</strong></div>
             <div class="meta-label" style="margin-top:12px;">{{ __("Currency") }}</div>
             <div class="meta-value">{{ $row->currency }}</div>
         </div>
@@ -173,20 +173,29 @@ body { font-family: Georgia, 'Times New Roman', serif; font-size: 13px; color: #
     <div class="totals">
         <div class="totals-pad"></div>
         <div class="totals-box">
-            @if($row->tax_rate > 0)
-            <div class="totals-row">
-                <div class="totals-label">{{ __("Excl. VAT") }}</div>
-                <div class="totals-val">{{ $row->currency }} {{ number_format($row->subtotal, 2) }}</div>
-            </div>
-            <div class="totals-row">
-                <div class="totals-label">{{ __("VAT") }} ({{ $row->tax_rate }}% {{ __("incl.") }})</div>
-                <div class="totals-val">{{ $row->currency }} {{ number_format($row->tax_amount, 2) }}</div>
-            </div>
+            @php $excl = ($row->tax_mode ?? 'inclusive') === 'exclusive'; @endphp
+            @if($excl && $row->tax_rate > 0)
+            <div class="totals-row"><div class="totals-label">{{ __("Subtotal") }}</div><div class="totals-val">{{ $row->currency }} {{ number_format($row->subtotal, 2) }}</div></div>
             @endif
-            <div class="totals-row totals-grand">
-                <div class="totals-label">{{ __("TOTAL") }}</div>
-                <div class="totals-val">{{ $row->currency }} {{ number_format($row->total, 2) }}</div>
-            </div>
+            @if($row->discount > 0)
+            <div class="totals-row"><div class="totals-label">{{ __("Discount") }}</div><div class="totals-val">− {{ $row->currency }} {{ number_format($row->discount, 2) }}</div></div>
+            @endif
+            @if($row->tax_rate > 0)
+            @if(!$excl)
+            <div class="totals-row"><div class="totals-label">{{ __("Excl. VAT") }}</div><div class="totals-val">{{ $row->currency }} {{ number_format($row->subtotal, 2) }}</div></div>
+            @endif
+            @foreach(($row->tax_lines ?: [['name' => __('VAT'), 'rate' => $row->tax_rate + 0, 'amount' => $row->tax_amount]]) as $tl)
+            <div class="totals-row"><div class="totals-label">{{ $tl['name'] }} ({{ $tl['rate'] + 0 }}%{{ $excl ? '' : ' '.__('incl.') }})</div><div class="totals-val">{{ $row->currency }} {{ number_format($tl['amount'], 2) }}</div></div>
+            @endforeach
+            @endif
+            <div class="totals-row totals-grand"><div class="totals-label">{{ __("TOTAL") }}</div><div class="totals-val">{{ $row->currency }} {{ number_format($row->total, 2) }}</div></div>
+            @if($row->type === 'invoice' && $row->credit_total > 0)
+            <div class="totals-row"><div class="totals-label">{{ __("Credit notes") }}</div><div class="totals-val">− {{ $row->currency }} {{ number_format($row->credit_total, 2) }}</div></div>
+            @endif
+            @if($row->type === 'invoice' && ($row->amount_paid != 0 || $row->credit_total > 0))
+            <div class="totals-row"><div class="totals-label">{{ __("Paid") }}</div><div class="totals-val">− {{ $row->currency }} {{ number_format($row->amount_paid, 2) }}</div></div>
+            <div class="totals-row"><div class="totals-label"><strong>{{ $row->balance() <= 0 ? __("PAID IN FULL") : __("BALANCE DUE") }}</strong></div><div class="totals-val"><strong>{{ $row->currency }} {{ number_format(max(0, $row->balance()), 2) }}</strong></div></div>
+            @endif
         </div>
     </div>
 

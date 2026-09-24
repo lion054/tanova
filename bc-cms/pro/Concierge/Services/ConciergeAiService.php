@@ -19,8 +19,11 @@ class ConciergeAiService
 
     public function __construct()
     {
-        $this->apiKey    = setting_item('anthropic_api_key', '');
-        $this->model     = setting_item('anthropic_model', 'claude-sonnet-4-6');
+        // The admin setting wins, but fall back to the environment. Without this
+        // a key present only in .env leaves isConfigured() false, so every
+        // concierge reply silently returns null and the chat looks dead.
+        $this->apiKey    = setting_item('anthropic_api_key', '') ?: (string) env('ANTHROPIC_API_KEY', '');
+        $this->model     = setting_item('anthropic_model', '') ?: 'claude-sonnet-4-6';
         $this->maxTokens = 1200;
     }
 

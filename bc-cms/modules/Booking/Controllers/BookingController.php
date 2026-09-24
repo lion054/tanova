@@ -90,6 +90,51 @@ class BookingController extends \App\Http\Controllers\Controller
         return view('Booking::frontend/checkout', $data);
     }
 
+    /**
+     * Where PayPal sends someone who paid (or gave up) for a booking they made
+     * in a vendor's app: a small page that says how it went and hands them back
+     * to the app. The app also checks the booking's status itself when it
+     * comes back to the front, so this page is a courtesy, not the source of
+     * truth. Only the booking's own code is needed, and only its status shows.
+     */
+    public function appReturn(Request $request, $code)
+    {
+        $booking = $this->booking::where('code', $code)->first();
+        if (empty($booking) || $booking->getMeta('source') !== 'vendor_app') {
+            abort(404);
+        }
+
+        $paid = in_array($booking->status, [
+            $booking::PAID, $booking::CONFIRMED, $booking::COMPLETED, $booking::PARTIAL_PAYMENT,
+        ]);
+        $cancelled = $request->query('result') === 'cancelled' || $booking->status === $booking::CANCELLED;
+        [$title, $text] = $paid
+            ? [__('Payment received'), __('Thank you. Your booking is paid. Go back to the app to see it.')]
+            : ($cancelled
+                ? [__('Payment cancelled'), __('Nothing was charged. Go back to the app to try again whenever you like.')]
+                : [__('We could not take the payment'), __('Nothing was charged. Go back to the app to try again.')]);
+
+        $back = (string) $booking->getMeta('app_return_url');
+        $backLink = $back !== ''
+            ? '<p><a class="btn" href="' . e($back) . '">' . e(__('Back to the app')) . '</a></p>'
+            : '';
+
+        $html = '<!doctype html><html lang="en"><head><meta charset="utf-8">'
+            . '<meta name="viewport" content="width=device-width,initial-scale=1">'
+            . '<title>' . e($title) . '</title><style>'
+            . 'body{margin:0;font-family:-apple-system,Segoe UI,Roboto,sans-serif;background:#fff;color:#1c1c1c;'
+            . 'display:flex;min-height:100vh;align-items:center;justify-content:center;padding:24px}'
+            . 'main{max-width:420px;text-align:center}h1{font-size:26px;margin:0 0 12px}'
+            . 'p{color:#5f5f5f;line-height:1.5}.code{font-family:monospace;color:#1c1c1c}'
+            . '.btn{display:inline-block;margin-top:8px;padding:14px 28px;background:#1f4d3a;color:#fff;'
+            . 'border-radius:8px;text-decoration:none;font-weight:600}'
+            . '</style></head><body><main><h1>' . e($title) . '</h1><p>' . e($text) . '</p>'
+            . '<p>' . e(__('Booking')) . ' <span class="code">' . e($booking->code) . '</span></p>'
+            . $backLink . '</main></body></html>';
+
+        return response($html)->header('Cache-Control', 'no-store');
+    }
+
     public function checkStatusCheckout($code)
     {
         $booking = $this->booking::where('code', $code)->first();

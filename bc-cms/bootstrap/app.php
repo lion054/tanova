@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
             '*/gateway_callback/*',
             '*/callback/*',
             '*/order/confirm/*',
+            'tourpay/notify/*',   // gateways POST here; nothing in the message is trusted, the gateway is asked again
         ]);
 
         // Redirect to installer if not installed
@@ -44,6 +45,7 @@ return Application::configure(basePath: dirname(__DIR__))
             "system_log_view"      => \App\Http\Middleware\CheckForLogPermission::class,
             "set_language_for_api" => \App\Http\Middleware\SetLanguageForApi::class,
             "pro_plan"             => \App\Pro\Middlewares\ProPlan::class,
+            "api.scope"            => \App\Http\Middleware\RequireApiScope::class,
         ]);
         // Note: vendor-api rate limiter is registered in AppServiceProvider::boot()
 
@@ -52,5 +54,5 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi();
     })
     ->withExceptions(function (Exceptions $exceptions) {
-        //
+        \App\Support\ApiErrors::register($exceptions);
     })->create();

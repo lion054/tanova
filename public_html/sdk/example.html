@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Tsoka API — Headless Starter</title>
+  <style>
+    :root { --ink:#0a0a0a; --muted:#6b6b6b; --line:#e6e6e6; --gold:#d8a24a; }
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, -apple-system, sans-serif; color: var(--ink); margin: 0; background:#fafafa; }
+    .wrap { max-width: 1000px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 24px; margin: 0 0 4px; }
+    p.sub { color: var(--muted); margin: 0 0 24px; }
+    .bar { display:flex; gap:10px; flex-wrap:wrap; align-items:center; background:#fff; border:1px solid var(--line); border-radius:10px; padding:14px; margin-bottom:24px; }
+    .bar input, .bar select { padding:9px 11px; border:1px solid var(--line); border-radius:7px; font-size:14px; }
+    .bar input[type=text] { flex:1; min-width:240px; font-family:ui-monospace,monospace; }
+    .bar button { padding:9px 16px; border:0; border-radius:7px; background:var(--ink); color:#fff; font-weight:600; cursor:pointer; }
+    .bar button:hover { background:#222; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; }
+    .card { background:#fff; border:1px solid var(--line); border-radius:12px; overflow:hidden; }
+    .card .ph { height:140px; background:linear-gradient(135deg,#efe7d6,#d8a24a33); display:flex; align-items:center; justify-content:center; color:var(--gold); font-size:13px; }
+    .card img { width:100%; height:140px; object-fit:cover; display:block; }
+    .card .body { padding:14px; }
+    .card h3 { font-size:15px; margin:0 0 6px; }
+    .card .price { color:var(--gold); font-weight:700; }
+    .msg { padding:12px 14px; border-radius:8px; font-size:14px; margin-bottom:16px; }
+    .msg.err { background:#fdf3f2; color:#b3261e; border:1px solid #f4d9d6; }
+    .msg.ok { background:#f1f8f2; color:#2f6b3a; border:1px solid #d4e9d7; }
+    code { background:#f2f2f0; padding:1px 5px; border-radius:4px; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Tsoka API — Headless Starter</h1>
+    <p class="sub">A minimal example: fetch a vendor's catalogue with a <strong>publishable</strong> key (<code>pk_live_…</code> or <code>pk_test_…</code>) using the Tsoka SDK. Copy this file into your site and style it however you like.</p>
+
+    <div class="bar">
+      <input type="text" id="key" placeholder="pk_live_… or pk_test_…" autocomplete="off">
+      <select id="type">
+        <option value="tours">Tours</option>
+        <option value="hotels">Hotels</option>
+        <option value="cars">Cars</option>
+        <option value="boats">Boats</option>
+        <option value="events">Events</option>
+      </select>
+      <button id="load">Load catalogue</button>
+    </div>
+
+    <div id="status"></div>
+    <div class="grid" id="grid"></div>
+  </div>
+
+  <!-- In production, load from the portal: https://portal.tsokatravel.com/sdk/tsoka.js -->
+  <script src="./tsoka.js"></script>
+  <script>
+    var statusEl = document.getElementById('status');
+    var gridEl = document.getElementById('grid');
+
+    function setStatus(msg, kind) {
+      statusEl.innerHTML = msg ? '<div class="msg ' + (kind || '') + '">' + msg + '</div>' : '';
+    }
+
+    function pick(obj, keys) { for (var i=0;i<keys.length;i++){ if (obj && obj[keys[i]] != null) return obj[keys[i]]; } return null; }
+
+    function render(items) {
+      gridEl.innerHTML = '';
+      if (!items || !items.length) { setStatus('No published services found for this key.', 'ok'); return; }
+      items.forEach(function (it) {
+        var title = pick(it, ['title','name']) || 'Untitled';
+        var price = pick(it, ['price','sale_price']);
+        var img = pick(it, ['image','image_url','banner_image']);
+        var card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML =
+          (img ? '<img src="' + img + '" alt="" onerror="this.outerHTML=\'<div class=ph>No image</div>\'">' : '<div class="ph">No image</div>') +
+          '<div class="body"><h3>' + title + '</h3>' +
+          (price != null ? '<div class="price">' + price + '</div>' : '') + '</div>';
+        gridEl.appendChild(card);
+      });
+      setStatus(items.length + ' service(s) loaded.', 'ok');
+    }
+
+    document.getElementById('load').addEventListener('click', function () {
+      var key = document.getElementById('key').value.trim();
+      var type = document.getElementById('type').value;
+      if (!key) { setStatus('Enter a publishable key first.', 'err'); return; }
+
+      setStatus('Loading…');
+      gridEl.innerHTML = '';
+
+      var tsoka = Tsoka({ key: key });
+      tsoka.services.list(type, { per_page: 24 })
+        .then(function (res) { render(res.data || res); })
+        .catch(function (e) { setStatus('Error ' + e.status + ' (' + e.code + '): ' + e.message, 'err'); });
+    });
+  </script>
+</body>
+</html>

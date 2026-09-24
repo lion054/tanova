@@ -34,7 +34,8 @@ class VendorCors
         if ($allowed && $origin) {
             $response->headers->set('Access-Control-Allow-Origin', $origin);
             $response->headers->set('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
-            $response->headers->set('Access-Control-Allow-Headers', 'Authorization, Content-Type, Accept, X-Requested-With');
+            $response->headers->set('Access-Control-Allow-Headers', 'Authorization, Content-Type, Accept, X-Requested-With, Idempotency-Key, X-Customer-Token, Tsoka-Version, If-None-Match');
+            $response->headers->set('Access-Control-Expose-Headers', 'ETag, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset, Retry-After, Idempotent-Replayed, X-Tsoka-Mode, X-Tsoka-Version');
             $response->headers->set('Access-Control-Max-Age', '86400');
             $response->headers->set('Vary', 'Origin');
         }

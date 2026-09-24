@@ -1,0 +1,24 @@
+# Runs on every push and pull request once this repository has a remote.
+# What it guards: the app still boots, every route and view compiles, and no dependency has a known security advisory.
+# The feature tests clone a seeded development database (see tests/ApiTestCase.php), so they run on the developer
+# machine before a deploy (`php vendor/bin/phpunit tests/Unit tests/Feature/Vendor tests/Feature/Api`), not here.
+name: ci
+on: [push, pull_request]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: bc-cms } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.4', extensions: 'mbstring, bcmath, intl, gd, zip, pdo_mysql', tools: composer }
+      - run: composer install --no-interaction --prefer-dist --ignore-platform-req=php
+      - name: Every PHP file parses
+        run: find app modules Pro routes config database -name '*.php' -print0 | xargs -0 -n1 -P4 php -l > /dev/null
+      - name: Routes and views compile
+        run: |
+          cp .env.example .env && php artisan key:generate
+          php artisan route:cache && php artisan view:cache
+      - name: No known security advisories in dependencies
+        run: composer audit --no-interaction --ignore-severity=low --abandoned=ignore

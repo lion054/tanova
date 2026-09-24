@@ -2,9 +2,8 @@
 
 namespace App\Listeners;
 
-use App\Jobs\DeliverWebhook;
 use Modules\Booking\Events\BookingUpdatedEvent;
-use Modules\Vendor\Models\VendorWebhook;
+use Modules\Vendor\Services\WebhookEvents;
 
 class DispatchVendorWebhooks
 {
@@ -31,36 +30,25 @@ class DispatchVendorWebhooks
             return;
         }
 
-        $webhooks = VendorWebhook::forVendorEvent($booking->vendor_id, $webhookEvent);
-
-        if ($webhooks->isEmpty()) {
-            return;
-        }
-
-        $payload = [
-            'event'   => $webhookEvent,
-            'booking' => [
-                'code'         => $booking->code,
-                'status'       => $booking->status,
-                'object_model' => $booking->object_model,
-                'object_id'    => $booking->object_id,
-                'total'        => $booking->total,
-                'currency'     => $booking->currency ?? 'USD',
-                'customer'     => [
-                    'name'  => $booking->first_name . ' ' . $booking->last_name,
-                    'email' => $booking->email,
-                    'phone' => $booking->phone,
-                ],
-                'check_in'     => $booking->start_date,
-                'check_out'    => $booking->end_date,
-                'created_at'   => $booking->created_at?->toIso8601String(),
-                'updated_at'   => $booking->updated_at?->toIso8601String(),
+        $object = [
+            'code'         => $booking->code,
+            'status'       => $booking->status,
+            'object_model' => $booking->object_model,
+            'object_id'    => $booking->object_id,
+            'total'        => $booking->total,
+            'currency'     => $booking->currency ?? 'USD',
+            'customer'     => [
+                'name'  => $booking->first_name . ' ' . $booking->last_name,
+                'email' => $booking->email,
+                'phone' => $booking->phone,
             ],
+            'check_in'     => $booking->start_date,
+            'check_out'    => $booking->end_date,
+            'created_at'   => $booking->created_at?->toIso8601String(),
+            'updated_at'   => $booking->updated_at?->toIso8601String(),
         ];
 
-        foreach ($webhooks as $webhook) {
-            DeliverWebhook::dispatch($webhook->id, $webhookEvent, $payload)
-                ->onQueue('webhooks');
-        }
+        // The envelope is new; the original `event` and `booking` keys are kept for receivers already written.
+        WebhookEvents::emit((int) $booking->vendor_id, $webhookEvent, $object, ['event' => $webhookEvent, 'booking' => $object]);
     }
 }

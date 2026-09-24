@@ -46,7 +46,7 @@ class ResolveVendorApiKey
             $message = match ($code) {
                 'api_key_revoked'     => 'This API key has been revoked.',
                 'api_key_expired'     => 'This API key has expired.',
-                'rate_limit_exceeded' => 'Monthly request limit reached. Upgrade your plan or wait until next month.',
+                'rate_limit_exceeded' => 'This key has used its request allowance for the year. Upgrade your plan or ask for a higher limit.',
             };
 
             Log::info('vendor_api_key_blocked', [
@@ -100,6 +100,10 @@ class ResolveVendorApiKey
         // Set vendor context — all scopes and controllers read from here
         VendorContext::set($vendor);
         VendorContext::setMode($apiKey->isTest() ? 'test' : 'live');
+        if ($apiKey->isTest()) {
+            // A test key never sends real e-mail: anything the request triggers is captured, not delivered.
+            config(['mail.default' => 'array']);
+        }
 
         // Set the authenticated user so auth()->user() calls work throughout the app
         Auth::setUser($vendor);

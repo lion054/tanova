@@ -10,14 +10,15 @@ class VendorWebhookDelivery extends Model
     protected $table = 'bc_vendor_webhook_deliveries';
 
     protected $fillable = [
-        'webhook_id', 'event', 'payload',
-        'status_code', 'response_body', 'attempts', 'success', 'delivered_at',
+        'webhook_id', 'event', 'event_id', 'payload',
+        'status_code', 'response_body', 'attempts', 'success', 'delivered_at', 'next_attempt_at', 'duration_ms',
     ];
 
     protected $casts = [
         'payload'      => 'array',
         'success'      => 'boolean',
         'delivered_at' => 'datetime',
+        'next_attempt_at' => 'datetime',
     ];
 
     public function webhook(): BelongsTo

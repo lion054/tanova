@@ -5,9 +5,14 @@ namespace Modules\Vendor\Commands;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Modules\Booking\Models\Booking;
+use Modules\Vendor\Models\BookingGuest;
+use Modules\Vendor\Models\LoyaltyAccount;
 use Modules\Vendor\Models\ScheduledMessage;
 use Modules\Vendor\Models\ScheduledMessageLog;
 use Modules\Vendor\Models\VendorOccasion;
+use Modules\Vendor\Services\BookingPayments;
+use Modules\Vendor\Services\GuestForm;
+use Modules\Vendor\Services\OccasionSync;
 use Modules\Vendor\Services\VendorChannelDispatcher;
 
 /**
@@ -33,6 +38,13 @@ class DispatchScheduledMessages extends Command
 
         $messages = ScheduledMessage::where('active', true)->get();
 
+        // Birthdays read off customers and guest forms are kept in Occasions first.
+        if (!$dryRun) {
+            foreach ($messages->where('trigger', 'occasion')->pluck('vendor_id')->unique() as $vendorId) {
+                app(OccasionSync::class)->run((int) $vendorId);
+            }
+        }
+
         foreach ($messages as $message) {
             $recipients = $message->trigger === 'occasion'
                 ? $this->occasionRecipients($message, $today)
@@ -53,6 +65,8 @@ class DispatchScheduledMessages extends Command
                 $already = ScheduledMessageLog::where('scheduled_message_id', $message->id)
                     ->where($identity)
                     ->where('status', 'sent')
+                    // An occasion comes round every year, so it is sent once a year.
+                    ->when($message->trigger === 'occasion', fn ($q) => $q->whereYear('sent_at', $today->year))
                     ->exists();
 
                 if ($already) {
@@ -77,20 +91,51 @@ class DispatchScheduledMessages extends Command
 
     private function bookingRecipients(ScheduledMessage $message, Carbon $today): array
     {
-        // booking_date + offset_days == today  ⇒  booking_date == today - offset_days
+        // booking_date + offset == today  =>  booking_date == today - offset
         $targetDate = $today->copy()->subDays($message->offset_days)->toDateString();
 
-        return Booking::where('vendor_id', $message->vendor_id)
+        $bookings = Booking::where('vendor_id', $message->vendor_id)
             ->whereNotIn('status', Booking::$notAcceptedStatus)
             ->whereDate($message->dateColumn(), $targetDate)
-            ->get()
-            ->map(fn ($b) => [
+            ->get();
+
+        $payments = app(BookingPayments::class);
+        $out = [];
+        foreach ($bookings as $b) {
+            $balance = $payments->balance($b);
+            if ($message->trigger === 'payment_due' && $balance <= 0) {
+                continue;
+            }
+            if ($message->trigger === 'guest_form'
+                && BookingGuest::withoutVendorScope()->where('booking_id', $b->id)->where('source', 'customer')->exists()) {
+                continue; // the customer has already filled it in
+            }
+
+            $points = 0;
+            if ($message->trigger === 'loyalty_offer' && $b->email) {
+                $points = (int) LoyaltyAccount::withoutVendorScope()->where('vendor_id', $b->vendor_id)
+                    ->whereRaw('LOWER(customer_email) = ?', [strtolower($b->email)])->value('points');
+            }
+
+            $first = trim((string) $b->first_name);
+            $out[] = [
                 'email'      => $b->email,
                 'phone'      => $b->phone,
-                'name'       => trim(($b->first_name ?? '') . ' ' . ($b->last_name ?? '')),
+                'name'       => trim($first . ' ' . ($b->last_name ?? '')),
                 'booking_id' => $b->id,
-            ])
-            ->all();
+                'vars'       => [
+                    '{name}'            => $first ?: 'there',
+                    '{reference}'       => $b->code ? strtoupper(substr($b->code, 0, 8)) : (string) $b->id,
+                    '{trip}'            => optional($b->service)->title ?: 'your trip',
+                    '{date}'            => $b->start_date ? Carbon::parse($b->start_date)->format('D j M Y') : '',
+                    '{guest_form_link}' => $message->trigger === 'guest_form' || str_contains($message->body, '{guest_form_link}') ? app(GuestForm::class)->urlFor($b) : '',
+                    '{balance}'         => '$' . number_format($balance, 2),
+                    '{points}'          => (string) $points,
+                ],
+            ];
+        }
+
+        return $out;
     }
 
     private function occasionRecipients(ScheduledMessage $message, Carbon $today): array
@@ -106,14 +151,16 @@ class DispatchScheduledMessages extends Command
                 'phone'      => $o->customer_phone,
                 'name'       => $o->customer_name,
                 'booking_id' => null,
+                'vars'       => ['{name}' => explode(' ', trim((string) $o->customer_name))[0] ?: 'there'],
             ])
             ->all();
     }
 
     private function deliver(ScheduledMessage $message, array $r): void
     {
-        $body    = str_replace('{name}', $r['name'] ?: 'there', $message->body);
-        $subject = $message->subject ?: $message->name;
+        $vars    = ($r['vars'] ?? []) + ['{name}' => $r['name'] ?: 'there'];
+        $body    = ScheduledMessage::render($message->body, $vars);
+        $subject = ScheduledMessage::render($message->subject ?: $message->name, $vars);
 
         // Delegate to the vendor's own connected channel (email/whatsapp/telegram/…).
         $result = app(VendorChannelDispatcher::class)->send(

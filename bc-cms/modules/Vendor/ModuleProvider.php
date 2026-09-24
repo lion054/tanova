@@ -15,6 +15,8 @@ class ModuleProvider extends ModuleServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([
                 \Modules\Vendor\Commands\DispatchScheduledMessages::class,
+                \Modules\Vendor\Commands\RetryWebhooks::class,
+                \App\Console\Commands\TenantExport::class,
             ]);
         }
     }
@@ -85,6 +87,16 @@ class ModuleProvider extends ModuleServiceProvider
             'icon' => 'icon ion-ios-checkmark-circle', 'position' => 71,
             'permission' => 'dashboard_vendor_access', 'is_new' => true,
         ];
+        $res['departures'] = [
+            'url' => route('vendor.departures.index'), 'title' => __('Departures & seats'),
+            'icon' => 'icon ion-ios-calendar', 'position' => 70,
+            'permission' => 'dashboard_vendor_access', 'is_new' => true,
+        ];
+        $res['shelves'] = [
+            'url' => route('vendor.shelves'), 'title' => __('Trending & Bestsellers'),
+            'icon' => 'icon ion-ios-flame', 'position' => 73,
+            'permission' => 'dashboard_vendor_access', 'is_new' => true,
+        ];
         $res['waitlist'] = [
             'url' => route('vendor.waitlist.index'), 'title' => __('Waitlist'),
             'icon' => 'icon ion-ios-people', 'position' => 72,
@@ -124,6 +136,17 @@ class ModuleProvider extends ModuleServiceProvider
         $res['occasions'] = [
             'url' => route('vendor.occasions.index'), 'title' => __('Occasions'),
             'icon' => 'icon ion-ios-gift', 'position' => 78,
+            'permission' => 'dashboard_vendor_access', 'is_new' => true,
+        ];
+        // Shared-calendar greetings — distinct from Occasions, which are per-customer.
+        $res['holidays'] = [
+            'url' => route('vendor.holidays.index'), 'title' => __('Holiday Greetings'),
+            'icon' => 'icon ion-ios-calendar', 'position' => 78,
+            'permission' => 'dashboard_vendor_access', 'is_new' => true,
+        ];
+        $res['customers'] = [
+            'url' => route('vendor.customers.index'), 'title' => __('Customers'),
+            'icon' => 'icon ion-ios-contacts', 'position' => 69,
             'permission' => 'dashboard_vendor_access', 'is_new' => true,
         ];
         $res['campaigns'] = [
@@ -198,6 +221,14 @@ class ModuleProvider extends ModuleServiceProvider
             'icon'       => 'icon ion-ios-key',
             'position'   => 95,
             'permission' => 'dashboard_vendor_access',
+        ];
+        $res['api_docs'] = [
+            'url'        => route('vendor.api_docs'),
+            'title'      => __('API & Website Docs'),
+            'icon'       => 'icon ion-ios-book',
+            'position'   => 96,
+            'permission' => 'dashboard_vendor_access',
+            'is_new'     => true,
         ];
         if(is_enable_vendor_team()){
 

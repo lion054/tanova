@@ -90,7 +90,20 @@ class PaypalGateway extends BaseGateway
 
     public function process(Request $request, $booking, $service)
     {
+        $url = $this->startPayment($booking);
+        response()->json([
+            'url' => $url
+        ])->send();
+    }
 
+    /**
+     * Creates the PayPal order for what is still owed on [$booking] and returns
+     * the approval URL the customer is sent to. Throws when the booking cannot
+     * be paid or PayPal refuses the order. process() is the website checkout
+     * and answers with it as JSON; the vendor API returns it to the app.
+     */
+    public function startPayment($booking): string
+    {
         if (in_array($booking->status, [
             $booking::PAID,
             $booking::COMPLETED,
@@ -131,24 +144,34 @@ class PaypalGateway extends BaseGateway
             } catch (\Exception $e) {
                 Log::warning($e->getMessage());
             }
-            response()->json([
-                'url' => $url
-            ])->send();
-        } else {
-
-            // Log to server
-            Log::error('Paypal Process Payment: ' . json_encode($json));
-
-            // This is something with paypal, 
-            // Should not update order status or payment status here
-
-            // Use br to display error message in html
-            $message = implode("<br>", $this->parsePaypalError($json));
-
-            throw new Exception('Paypal Gateway: ' . $message);
+            return $url;
         }
+
+        // Log to server
+        Log::error('Paypal Process Payment: ' . json_encode($json));
+
+        // This is something with paypal,
+        // Should not update order status or payment status here
+
+        // Use br to display error message in html
+        $message = implode("<br>", $this->parsePaypalError($json));
+
+        throw new Exception('Paypal Gateway: ' . $message);
     }
 
+
+    /**
+     * A booking made from a vendor's app goes back to the small page that hands
+     * the customer to that app, not to the website's booking page (which wants
+     * a website login). Null for everything else.
+     */
+    protected function appReturn($booking, string $result)
+    {
+        if ($booking->getMeta('source') !== 'vendor_app') {
+            return null;
+        }
+        return redirect(url(config('booking.booking_route_prefix') . '/return/' . $booking->code . '?result=' . $result));
+    }
 
     public function processNormal($payment)
     {
@@ -217,12 +240,29 @@ class PaypalGateway extends BaseGateway
                         $payment->save();
                     }
                     try {
-                        //                    $oldPaynow = (float)$booking->pay_now;
-                        $booking->paid += (float)$booking->pay_now;
-                        //                    $booking->pay_now = (float)($oldPaynow - $data['originalAmount'] < 0 ? 0 : $oldPaynow - $data['originalAmount']);
-                        $booking->markAsPaid();
+                        // One payment can cover several bookings (a trip's activities
+                        // paid together): the booking PayPal knows carries the codes of
+                        // the rest, and each of them is settled for its own total.
+                        $group = json_decode((string) $booking->getMeta('group_codes', '[]'), true) ?: [];
+                        if ($group) {
+                            foreach ($group as $groupCode) {
+                                $member = app(Booking::class)->where('code', $groupCode)->first();
+                                if ($member && !in_array($member->status, [$member::PAID, $member::CANCELLED], true)) {
+                                    $member->paid = (float) $member->total;
+                                    $member->markAsPaid();
+                                }
+                            }
+                        } else {
+                            //                    $oldPaynow = (float)$booking->pay_now;
+                            $booking->paid += (float)$booking->pay_now;
+                            //                    $booking->pay_now = (float)($oldPaynow - $data['originalAmount'] < 0 ? 0 : $oldPaynow - $data['originalAmount']);
+                            $booking->markAsPaid();
+                        }
                     } catch (\Exception $e) {
                         Log::warning($e->getMessage());
+                    }
+                    if ($back = $this->appReturn($booking, 'paid')) {
+                        return $back;
                     }
                     return redirect($booking->getDetailUrl())->with("success", __("You payment has been processed successfully"));
 
@@ -239,6 +279,9 @@ class PaypalGateway extends BaseGateway
                         $booking->markAsPaymentFailed();
                     } catch (\Exception $e) {
                         Log::warning($e->getMessage());
+                    }
+                    if ($back = $this->appReturn($booking, 'failed')) {
+                        return $back;
                     }
                     return redirect($booking->getDetailUrl())->with("error", __("Payment Failed"));
             }
@@ -335,6 +378,9 @@ class PaypalGateway extends BaseGateway
 
             // Refund without check status
             $booking->tryRefundToWallet(false);
+            if ($back = $this->appReturn($booking, 'cancelled')) {
+                return $back;
+            }
             return redirect($booking->getDetailUrl())->with("error", __("You cancelled the payment"));
         }
 

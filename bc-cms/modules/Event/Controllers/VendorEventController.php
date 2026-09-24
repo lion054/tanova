@@ -19,6 +19,8 @@ use Modules\User\Models\Plan;
 
 class VendorEventController extends FrontendController
 {
+    use \App\Traits\FiltersManageList;
+
     protected $eventClass;
     protected $eventTranslationClass;
     protected $eventTermClass;
@@ -54,9 +56,10 @@ class VendorEventController extends FrontendController
     {
         $this->checkPermission('event_view');
         $user_id = Auth::id();
-        $list_tour = $this->eventClass::where("author_id", $user_id)->orderBy('id', 'desc');
+        [$list_tour, $fb, $perPage] = $this->manageFilters($request, $this->eventClass::where("author_id", $user_id), ['table' => 'bc_events', 'noun' => __('events'), 'status' => true, 'price' => true]);
         $data = [
-            'rows' => $list_tour->paginate(20),
+            'rows' => $list_tour->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'breadcrumbs'        => [
                 [
                     'name' => __('Manage Events'),
@@ -76,9 +79,10 @@ class VendorEventController extends FrontendController
     {
         $this->checkPermission('event_view');
         $user_id = Auth::id();
-        $list_tour = $this->eventClass::onlyTrashed()->where("author_id", $user_id)->orderBy('id', 'desc');
+        [$list_tour, $fb, $perPage] = $this->manageFilters($request, $this->eventClass::onlyTrashed()->where("author_id", $user_id), ['table' => 'bc_events', 'noun' => __('events'), 'status' => true, 'price' => true]);
         $data = [
-            'rows' => $list_tour->paginate(20),
+            'rows' => $list_tour->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'recovery'           => 1,
             'breadcrumbs'        => [
                 [

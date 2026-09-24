@@ -20,6 +20,8 @@ use Modules\User\Models\Plan;
 
 class ManageCarController extends FrontendController
 {
+    use \App\Traits\FiltersManageList;
+
     protected $carClass;
     protected $carTranslationClass;
     protected $carTermClass;
@@ -52,9 +54,10 @@ class ManageCarController extends FrontendController
     {
         $this->checkPermission('car_view');
         $user_id = Auth::id();
-        $list_tour = $this->carClass::where("author_id", $user_id)->orderBy('id', 'desc');
+        [$list_tour, $fb, $perPage] = $this->manageFilters($request, $this->carClass::where("author_id", $user_id), ['table' => 'bc_cars', 'noun' => __('cars'), 'status' => true, 'price' => true]);
         $data = [
-            'rows' => $list_tour->paginate(20),
+            'rows' => $list_tour->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'breadcrumbs'        => [
                 [
                     'name' => __('Manage Cars'),
@@ -74,9 +77,10 @@ class ManageCarController extends FrontendController
     {
         $this->checkPermission('car_view');
         $user_id = Auth::id();
-        $list_tour = $this->carClass::onlyTrashed()->where("author_id", $user_id)->orderBy('id', 'desc');
+        [$list_tour, $fb, $perPage] = $this->manageFilters($request, $this->carClass::onlyTrashed()->where("author_id", $user_id), ['table' => 'bc_cars', 'noun' => __('cars'), 'status' => true, 'price' => true]);
         $data = [
-            'rows' => $list_tour->paginate(20),
+            'rows' => $list_tour->paginate($perPage)->appends($request->query()),
+            'fb' => $fb,
             'recovery'           => 1,
             'breadcrumbs'        => [
                 [

@@ -23,6 +23,7 @@ class VendorWebhook extends Model
         'last_triggered_at' => 'datetime',
     ];
 
+    /** @deprecated use WebhookEvents::types() */
     public static $supportedEvents = [
         'booking.confirmed',
         'booking.cancelled',
@@ -52,10 +53,16 @@ class VendorWebhook extends Model
         ]);
     }
 
-    /** Build the HMAC signature header value for a payload. */
-    public function sign(string $payload): string
+    /**
+     * The signature header. `v1` is the HMAC of the body (kept so existing receivers keep working). `v2` is the HMAC of
+     * "{t}.{body}", so the timestamp is covered and a captured request cannot be replayed later: receivers should
+     * verify v2 and reject a `t` more than five minutes old.
+     */
+    public function sign(string $payload, ?int $t = null): string
     {
-        return 't=' . time() . ',v1=' . hash_hmac('sha256', $payload, $this->secret);
+        $t ??= time();
+
+        return 't=' . $t . ',v1=' . hash_hmac('sha256', $payload, $this->secret) . ',v2=' . hash_hmac('sha256', $t . '.' . $payload, $this->secret);
     }
 
     /** Find all active webhooks for a vendor that listen to a specific event. */
@@ -63,7 +70,7 @@ class VendorWebhook extends Model
     {
         return static::where('vendor_id', $vendorId)
             ->where('active', true)
-            ->whereJsonContains('events', $event)
+            ->where(fn ($q) => $q->whereJsonContains('events', $event)->orWhereJsonContains('events', '*'))
             ->get();
     }
 }

@@ -4,6 +4,8 @@ namespace Modules\Vendor\Controllers;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Support\FilterBar;
+use App\Support\ListQuery;
 use Modules\Booking\Models\Booking;
 use Modules\Vendor\Models\BookingCheckin;
 
@@ -17,11 +19,23 @@ class CheckinController extends Controller
     {
         $date = $request->input('date', now()->toDateString());
 
-        $bookings = Booking::where('vendor_id', resolve_current_vendor_id())
+        $date = ListQuery::date($date) ?: now()->toDateString();
+        $base = Booking::where('vendor_id', resolve_current_vendor_id())
             ->whereDate('start_date', $date)
-            ->whereNotIn('status', Booking::$notAcceptedStatus)
-            ->orderBy('start_date')
-            ->paginate(30);
+            ->whereNotIn('status', Booking::$notAcceptedStatus);
+        $everything = (clone $base)->count();
+        ListQuery::search($base, $request->query('s'), ['first_name', 'last_name', 'email', 'phone', 'code']);
+        $states = ['expected' => __('Expected'), 'checked_in' => __('Checked in'), 'checked_out' => __('Checked out'), 'no_show' => __('No-show')];
+        $st = (string) $request->query('state', '');
+        if ($st === 'expected') {
+            $base->whereNotIn('id', BookingCheckin::whereIn('status', ['checked_in', 'checked_out', 'no_show'])->pluck('booking_id'));
+        } elseif (isset($states[$st])) {
+            $base->whereIn('id', BookingCheckin::where('status', $st)->pluck('booking_id'));
+        }
+        $base->orderBy('start_date')->orderBy('id');
+        $fb = FilterBar::make($request)->keep(['date'])->search('s', __('Search guest, e-mail or booking'))->select('state', __('Status'), $states, __('Any status'))
+            ->noun(__('bookings'))->total((clone $base)->reorder()->count(), $everything)->toArray();
+        $bookings = $base->paginate(30)->withQueryString();
 
         // BookingCheckin is auto-scoped to this vendor by the global scope.
         $checkins = BookingCheckin::whereIn('booking_id', $bookings->pluck('id'))
@@ -30,6 +44,7 @@ class CheckinController extends Controller
 
         return view('vendor.checkin.index', [
             'bookings'   => $bookings,
+            'fb'         => $fb,
             'checkins'   => $checkins,
             'date'       => $date,
             'page_title' => __('Check-In'),
