@@ -151,14 +151,19 @@ class InvoiceController extends FrontendController
         return view('TourPay::frontend.form', $this->formData($row, $row->type, __('Edit: :n', ['n' => $row->invoice_number])));
     }
 
+    /** Type-ahead for the form: JSON list of this business's customers or services matching what was typed. */
+    public function suggest(Request $request, string $what)
+    {
+        $q = mb_substr(trim((string) $request->query('q', '')), 0, 60);
+        $svc = app(\Modules\TourPay\Services\Suggest::class);
+
+        return response()->json(['results' => $what === 'customers' ? $svc->customers($q) : $svc->services($q)])->header('Cache-Control', 'no-store');
+    }
+
     private function formData(Invoice $row, string $type, string $title): array
     {
         return ['row' => $row, 'type' => $type, 'page_title' => $title, 'settings' => Setting::forVendor($this->vendorId()),
-            'customers' => \Modules\Vendor\Models\VendorCustomer::orderBy('first_name')->limit(300)->get(['id', 'first_name', 'last_name', 'email', 'phone', 'nationality']),
-            // What the vendor sells, to drop onto an invoice in one click.
-            'catalogue' => collect(\Modules\Tour\Models\Tour::forVendor()->where('status', 'publish')->orderBy('title')->limit(300)->get(['id', 'title', 'price', 'sale_price'])
-                ->map(fn ($t) => ['name' => $t->title, 'price' => (float) ($t->sale_price ?: $t->price), 'group' => __('Tours')]))
-                ->merge(\Modules\Vendor\Models\VendorUpsell::where('status', 'publish')->orderBy('name')->limit(200)->get(['name', 'price'])->map(fn ($u) => ['name' => $u->name, 'price' => (float) $u->price, 'group' => __('Add-ons')]))->values()->all()];
+        ];
     }
 
     private function fillFromCustomer(Invoice $row, int $customerId): void

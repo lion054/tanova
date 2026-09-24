@@ -20,6 +20,9 @@ Route::group(['prefix' => 'user/tourpay', 'middleware' => ['auth', 'verified']],
     Route::post('/bills/{id}/payments', 'BillController@addPayment')->name('tourpay.vendor.bills.payments');
     Route::post('/bills/{id}/void',    'BillController@void')->name('tourpay.vendor.bills.void');
     Route::delete('/bills/{id}',       'BillController@delete')->name('tourpay.vendor.bills.delete');
+    Route::get('/suggest/{what}',      'InvoiceController@suggest')->whereIn('what', ['customers', 'services'])->middleware('throttle:120,1')->name('tourpay.vendor.suggest');
+    Route::get('/statement',           'StatementController@index')->name('tourpay.vendor.statement');
+    Route::get('/statement.csv',       'StatementController@csv')->name('tourpay.vendor.statement.csv');
     Route::get('/reports',             'ReportController@index')->name('tourpay.vendor.reports');
     Route::get('/reports/{report}.csv', 'ReportController@csv')->whereIn('report', ['receivables', 'revenue', 'tax', 'profit', 'statement'])->name('tourpay.vendor.reports.csv');
     Route::get('/edit/{id}',           'InvoiceController@edit')->name('tourpay.vendor.edit');

@@ -48,6 +48,13 @@ class ModuleProvider extends ModuleServiceProvider
                 'icon'     => 'icofont-money',
                 'position' => 85,
             ],
+            'statement' => [
+                'url'        => route('tourpay.vendor.statement'),
+                'title'      => __('Statement'),
+                'icon'       => 'icofont-file-document',
+                'position'   => 86,
+                'permission' => 'dashboard_vendor_access',
+            ],
         ];
     }
 }

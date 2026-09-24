@@ -54,7 +54,7 @@ return [
         ],
         'finance' => [
             'label' => 'Finance',
-            'keys'  => ['wallet', 'payout', 'tourpay'],
+            'keys'  => ['wallet', 'payout', 'tourpay', 'statement'],
         ],
         'settings' => [
             'label' => 'Settings',

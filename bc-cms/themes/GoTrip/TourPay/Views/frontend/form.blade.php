@@ -195,6 +195,14 @@
     .tp-form-wrap { flex-direction: column; }
     .tp-form-side { width: 100%; position: static; min-width: 0; }
 }
+
+#tp-sug { display: none; position: absolute; z-index: 9999; background: #fff; border: 1px solid #e4e4e4; border-radius: 8px; box-shadow: 0 10px 30px rgba(0,0,0,.12); max-height: 320px; overflow-y: auto; font-size: 13px; }
+#tp-sug .g { padding: 7px 12px 4px; font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; color: #999; }
+#tp-sug .o { display: flex; gap: 10px; align-items: baseline; padding: 8px 12px; cursor: pointer; }
+#tp-sug .o b { font-weight: 700; color: #0a0a0a; white-space: nowrap; }
+#tp-sug .o span { color: #999; font-size: 12px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
+#tp-sug .o em { font-style: normal; font-size: 11.5px; color: #71717a; white-space: nowrap; margin-left: auto; }
+#tp-sug .o:hover, #tp-sug .o.on { background: #f4f4f5; }
 </style>
 
 <div class="tp">
@@ -236,22 +244,11 @@
                     <div class="tp-card-num">1</div>
                     <div class="tp-card-title">{{ __("Client Details") }}</div>
                 </div>
-                @if(($customers ?? collect())->count())
-                <div class="tp-field">
-                    <label>{{ __("Pick from your customers") }} <span style="font-weight:400;text-transform:none;letter-spacing:0;color:#bbb;">({{ __('optional') }})</span></label>
-                    <select id="tp-customer" onchange="pickCustomer(this)">
-                        <option value="">{{ __('New client, type below') }}</option>
-                        @foreach($customers as $c)
-                            <option value="{{ $c->id }}" data-name="{{ trim($c->first_name.' '.$c->last_name) }}" data-email="{{ $c->email }}" data-phone="{{ $c->phone }}" data-country="{{ $c->nationality }}" {{ (int) old('customer_id', $row->customer_id) === (int) $c->id ? 'selected' : '' }}>{{ trim($c->first_name.' '.$c->last_name) }}{{ $c->email ? ' · '.$c->email : '' }}</option>
-                        @endforeach
-                    </select>
-                    <input type="hidden" name="customer_id" id="tp-customer-id" value="{{ old('customer_id', $row->customer_id) }}">
-                </div>
-                @endif
+                <input type="hidden" name="customer_id" id="tp-customer-id" value="{{ old('customer_id', $row->customer_id) }}">
                 <div class="tp-row">
                     <div class="tp-field">
                         <label>{{ __("Full Name") }}<span class="req">*</span></label>
-                        <input type="text" name="client_name" value="{{ old('client_name', $row->client_name) }}" required placeholder="Jane Smith">
+                        <input type="text" name="client_name" value="{{ old('client_name', $row->client_name) }}" required placeholder="{{ __('Start typing a name, e-mail or phone…') }}" autocomplete="off" data-suggest="customers" data-picked="{{ old('customer_id', $row->customer_id) ? old('client_name', $row->client_name) : '' }}">
                     </div>
                     <div class="tp-field">
                         <label>{{ __("Email Address") }}</label>
@@ -296,16 +293,7 @@
                     <div class="tp-card-num">3</div>
                     <div class="tp-card-title">{{ __("Line Items") }}</div>
                 </div>
-                                @if(!empty($catalogue))
-                <div class="tp-field" style="margin-bottom:12px;">
-                    <select id="tp-catalogue" onchange="addFromCatalogue(this)">
-                        <option value="">+ {{ __('Add from your tours and add-ons…') }}</option>
-                        @foreach(collect($catalogue)->groupBy('group') as $g => $rows)
-                        <optgroup label="{{ $g }}">@foreach($rows as $r)<option value="{{ $loop->parent->index }}-{{ $loop->index }}" data-name="{{ $r['name'] }}" data-price="{{ $r['price'] }}">{{ $r['name'] }} · {{ number_format($r['price'], 2) }}</option>@endforeach</optgroup>
-                        @endforeach
-                    </select>
-                </div>
-                @endif
+                <div style="font-size:12px;color:#999;margin:-2px 0 10px;">{{ __('Type in the item box to pick one of your tours, stays, cars, add-ons or something you billed before.') }}</div>
                 <table class="tp-items-table">
                     <thead>
                         <tr>
@@ -321,7 +309,7 @@
                         @forelse($items as $i => $item)
                         <tr class="tp-item-row">
                             <td>
-                                <input type="text" name="items[{{ $i }}][name]" value="{{ $item['name'] }}" placeholder="{{ __('Item name') }}">
+                                <input type="text" name="items[{{ $i }}][name]" value="{{ $item['name'] }}" placeholder="{{ __('Item name') }}" autocomplete="off" data-suggest="services">
                                 <input type="text" name="items[{{ $i }}][description]" value="{{ $item['description'] ?? '' }}" placeholder="{{ __('Optional detail') }}" class="tp-item-sub-input">
                             </td>
                             <td><input type="number" name="items[{{ $i }}][quantity]"   value="{{ $item['quantity']   ?? 1 }}" min="0" step="any" class="tp-qty"   oninput="recalc()"></td>
@@ -332,7 +320,7 @@
                         @empty
                         <tr class="tp-item-row">
                             <td>
-                                <input type="text" name="items[0][name]" placeholder="{{ __('Item name') }}">
+                                <input type="text" name="items[0][name]" autocomplete="off" data-suggest="services" placeholder="{{ __('Item name') }}">
                                 <input type="text" name="items[0][description]" placeholder="{{ __('Optional detail') }}" class="tp-item-sub-input">
                             </td>
                             <td><input type="number" name="items[0][quantity]"   value="1" min="0" step="any" class="tp-qty"   oninput="recalc()"></td>
@@ -536,29 +524,11 @@ function addTax() {
     document.getElementById('tp-taxes').appendChild(d); d.querySelector('input').focus();
 }
 
-function addFromCatalogue(sel) {
-    var o = sel.options[sel.selectedIndex]; if (!sel.value) return;
-    var rows = document.querySelectorAll('.tp-item-row'), last = rows[rows.length - 1];
-    var empty = last && !last.querySelector('input[name$="[name]"]').value.trim();
-    if (!empty) { addItem(); rows = document.querySelectorAll('.tp-item-row'); last = rows[rows.length - 1]; }
-    last.querySelector('input[name$="[name]"]').value = o.dataset.name;
-    last.querySelector('.tp-price').value = o.dataset.price;
-    sel.selectedIndex = 0; recalc();
-}
-
 function setDue(days) {
     var issue = document.querySelector('input[name="issue_date"]').value;
     var d = issue ? new Date(issue + 'T00:00:00') : new Date();
     d.setDate(d.getDate() + days);
     document.getElementById('tp-due').value = d.toISOString().slice(0, 10);
-}
-
-function pickCustomer(sel) {
-    var o = sel.options[sel.selectedIndex];
-    document.getElementById('tp-customer-id').value = sel.value;
-    if (!sel.value) return;
-    var set = function (n, v) { var el = document.querySelector('[name="' + n + '"]'); if (el && v) el.value = v; };
-    set('client_name', o.dataset.name); set('client_email', o.dataset.email); set('client_phone', o.dataset.phone); set('client_country', o.dataset.country);
 }
 
 function addItem() {
@@ -568,7 +538,7 @@ function addItem() {
     tr.className = 'tp-item-row';
     tr.innerHTML =
         '<td>'
-        + '<input type="text" name="items['+i+'][name]" placeholder="{{ __("Item name") }}">'
+        + '<input type="text" name="items['+i+'][name]" placeholder="{{ __("Item name") }}" autocomplete="off" data-suggest="services">'
         + '<input type="text" name="items['+i+'][description]" placeholder="{{ __("Optional detail") }}" class="tp-item-sub-input">'
         + '</td>'
         + '<td><input type="number" name="items['+i+'][quantity]"   value="1" min="0" step="any" class="tp-qty"   oninput="recalc()"></td>'
@@ -596,6 +566,72 @@ function submitForm(action) {
 document.querySelector('select[name="currency"]').addEventListener('change', function() {
     document.getElementById('tp-currency-display').textContent = this.value;
 });
+
+// ── Type-ahead: customers (on the client name) and services (on every item name) ─────────────────────────
+(function () {
+    var URL = "{{ route('tourpay.vendor.suggest', ['what' => 'WHAT']) }}";
+    var box = document.createElement('div'); box.id = 'tp-sug'; box.setAttribute('role', 'listbox'); document.body.appendChild(box);
+    var active = null, items = [], cur = -1, timer = null, seq = 0;
+
+    function esc(t) { var d = document.createElement('div'); d.textContent = t == null ? '' : t; return d.innerHTML; }
+    function close() { box.style.display = 'none'; items = []; cur = -1; }
+    function place() { var r = active.getBoundingClientRect(); box.style.left = (r.left + window.scrollX) + 'px'; box.style.top = (r.bottom + window.scrollY + 2) + 'px'; box.style.minWidth = Math.max(r.width, 280) + 'px'; }
+    function render(kind, list) {
+        items = list; cur = -1;
+        if (!list.length) { close(); return; }
+        var html = '', last = null;
+        list.forEach(function (r, i) {
+            var g = kind === 'customers' ? null : r.group;
+            if (g !== last && g) { html += '<div class="g">' + esc(g) + '</div>'; last = g; }
+            html += kind === 'customers'
+                ? '<div class="o" data-i="' + i + '"><b>' + esc(r.name) + '</b><span>' + esc([r.email, r.phone].filter(Boolean).join(' · ')) + '</span><em>' + esc(r.source) + '</em></div>'
+                : '<div class="o" data-i="' + i + '"><b>' + esc(r.name) + '</b><span>' + esc(r.description) + '</span><em>' + (r.price ? Number(r.price).toFixed(2) : '') + '</em></div>';
+        });
+        box.innerHTML = html; place(); box.style.display = 'block';
+    }
+    function ask(input) {
+        var kind = input.dataset.suggest, my = ++seq;
+        fetch(URL.replace('WHAT', kind) + '?q=' + encodeURIComponent(input.value.trim()), { headers: { 'Accept': 'application/json', 'X-Requested-With': 'XMLHttpRequest' }, credentials: 'same-origin' })
+            .then(function (r) { return r.ok ? r.json() : { results: [] }; })
+            .then(function (j) { if (my === seq && active === input) render(kind, j.results || []); })
+            .catch(function () { close(); });
+    }
+    function choose(i) {
+        var r = items[i], input = active; if (!r || !input) return;
+        if (input.dataset.suggest === 'customers') {
+            var set = function (n, v) { var el = document.querySelector('[name="' + n + '"]'); if (el && v) el.value = v; };
+            input.value = r.name; set('client_email', r.email); set('client_phone', r.phone); set('client_country', r.country); set('client_address', r.address);
+            document.getElementById('tp-customer-id').value = r.customer_id || '';
+            input.dataset.picked = r.name;
+        } else {
+            var row = input.closest('.tp-item-row');
+            input.value = r.name;
+            if (r.price) row.querySelector('.tp-price').value = r.price;
+            var d = row.querySelector('input[name$="[description]"]'); if (d && !d.value && r.description) d.value = r.description;
+            recalc();
+        }
+        close();
+    }
+    document.addEventListener('input', function (e) {
+        var t = e.target; if (!t.dataset || !t.dataset.suggest) return;
+        active = t;
+        // Editing the name after picking a customer means it is no longer that customer.
+        if (t.dataset.suggest === 'customers' && t.dataset.picked && t.value !== t.dataset.picked) { document.getElementById('tp-customer-id').value = ''; t.dataset.picked = ''; }
+        clearTimeout(timer); timer = setTimeout(function () { ask(t); }, 150);
+    });
+    document.addEventListener('focusin', function (e) { var t = e.target; if (t.dataset && t.dataset.suggest) { active = t; ask(t); } });
+    document.addEventListener('keydown', function (e) {
+        if (box.style.display !== 'block') return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault(); cur = (cur + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length;
+            box.querySelectorAll('.o').forEach(function (o, i) { o.classList.toggle('on', i === cur); if (i === cur) o.scrollIntoView({ block: 'nearest' }); });
+        } else if (e.key === 'Enter' && cur >= 0) { e.preventDefault(); choose(cur); }
+        else if (e.key === 'Escape') { close(); }
+    });
+    box.addEventListener('mousedown', function (e) { var o = e.target.closest('.o'); if (o) { e.preventDefault(); choose(parseInt(o.dataset.i, 10)); } });
+    document.addEventListener('click', function (e) { if (!e.target.dataset || !e.target.dataset.suggest) close(); });
+    window.addEventListener('resize', function () { if (active && box.style.display === 'block') place(); });
+})();
 
 recalc();
 </script>
