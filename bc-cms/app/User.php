@@ -344,20 +344,28 @@ class User extends Authenticatable implements MustVerifyEmail
     }
 
     /**
-     * Get total available amount for payout at current time
+     * What the platform can pay this business out right now.
+     *
+     * Only money the platform actually holds counts (collected through the platform's own gateways, from the money ledger),
+     * never more than the business's own share of that booking (its price before fees, less commission, plus its service fee),
+     * and never money the guest paid the business directly. Less what has already been paid or requested.
      */
     public function getAvailablePayoutAmountAttribute()
     {
         $status = setting_item_array('vendor_payout_booking_status');
         if (empty($status)) return 0;
 
-        $query = Booking::query();
+        $held = app(\Modules\TourPay\Services\Ledger::class)->platformHeldByBooking((int) $this->id);
+        if (empty($held)) return 0;
 
-        $total = $query
-            ->whereIn('status', $status)
-            ->where('vendor_id', $this->id)
-            ->sum(DB::raw('total_before_fees - commission + vendor_service_fee_amount')) - $this->total_paid;
-        return max(0, $total);
+        $total = 0.0;
+        Booking::query()->whereIn('status', $status)->where('vendor_id', $this->id)->whereIn('id', array_keys($held))
+            ->selectRaw('id, (total_before_fees - commission + vendor_service_fee_amount) AS vendor_share')->get()
+            ->each(function ($b) use ($held, &$total) {
+                $total += max(0.0, min((float) $held[$b->id], (float) $b->vendor_share));
+            });
+
+        return max(0, round($total - (float) $this->total_paid, 2));
     }
 
     public function getTotalPaidAttribute()

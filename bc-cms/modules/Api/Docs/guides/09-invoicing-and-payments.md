@@ -35,6 +35,16 @@ To invoice a **booking**, use `POST /bookings/{code}/invoice`: it fills the invo
 
 The status of an invoice **follows its payments**: `draft`, `sent`, `part_paid`, `paid`. `overdue` is never stored, it is a fact about the due date (`overdue: true`). A paid or void document is a record and no longer changes.
 
+## One set of books
+
+Money is recorded once, in a single append-only ledger, and every total you see is worked out from it: a booking's `paid`, an invoice's `amount_paid`, a supplier bill's paid amount, the Finance statement and what the platform can pay out to you. A payment is never edited or deleted; a mistake is corrected by a reversing entry.
+
+- **A booking and its invoice show the same money.** A payment recorded on the booking (or made through a checkout on it) also counts on the booking's invoice, and a payment on the invoice also counts on the booking, in the same currency. Refunds recorded on the booking come off the invoice too. If the invoice is in another currency than the booking, the two are kept apart.
+- **The booking's status follows the money** (part paid, paid, back to unpaid after a refund), the way it does for any online payment. A paid booking is never marked completed: the trip still has to happen.
+- **Paying twice at once is safe.** Two payments arriving together are counted one after the other, and a payment that would overpay is refused. Sending the same payment again (same `gateway_ref`, or the same reference within a minute on a booking) returns the one already recorded.
+- **Who holds the money matters for payouts.** Money you collect yourself (your own gateway keys, bank transfers, cash) is in your hands. Money the platform collected through its own checkout is held for you until it is paid out. The payout balance only counts money the platform actually holds, never more than your share of that booking, and comes down if you refunded the guest yourself.
+- **Every night the books are checked** against each other. If anything differs, the platform's health check turns red so it is looked at the same day.
+
 ## Getting paid
 
 `pay_url` on every invoice is a page for your client: they see what is owed and the payments so far, and pay in whichever way you have switched on.

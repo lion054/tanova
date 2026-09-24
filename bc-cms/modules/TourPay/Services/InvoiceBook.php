@@ -2,6 +2,7 @@
 
 namespace Modules\TourPay\Services;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Modules\TourPay\Models\Invoice;
 use Modules\TourPay\Models\InvoiceItem;
@@ -62,6 +63,19 @@ class InvoiceBook
     }
 
     /**
+     * Locks the invoice row for a money change. If the invoice is for a booking, the booking is locked first: the booking payments
+     * code locks in that order too, so a payment on the invoice and one on the booking can never wait on each other.
+     */
+    private function lock(Invoice $inv): Invoice
+    {
+        if ($inv->booking_id) {
+            \Modules\Booking\Models\Booking::lockForUpdate()->find($inv->booking_id);
+        }
+
+        return Invoice::lockForUpdate()->findOrFail($inv->id);
+    }
+
+    /**
      * Overpaying is nearly always a typo, and accepting it makes the ledger lie: refuse rather than clamp.
      * A payment that carries a [$gatewayRef] is recorded once: asking again returns the one already there.
      */
@@ -73,17 +87,28 @@ class InvoiceBook
         if ($gatewayRef && ($existing = Payment::where('invoice_id', $inv->id)->where('gateway_ref', $gatewayRef)->first())) {
             return $existing;
         }
-        if ($inv->status === 'void') {
-            throw new InvoiceRuleException('invoice_locked', __('This invoice is void.'));
-        }
-        if ($amount <= 0) {
-            throw new InvoiceRuleException('invalid_amount', __('The amount must be more than zero.'));
-        }
-        if ($amount > $inv->balance() + 0.001) {
-            throw new InvoiceRuleException('exceeds_balance', __('That is more than the outstanding balance of :bal.', ['bal' => number_format($inv->balance(), 2)]));
-        }
-        $p = Payment::create(['vendor_id' => $inv->vendor_id, 'invoice_id' => $inv->id, 'amount' => $amount, 'method' => $method, 'reference' => $reference, 'gateway_ref' => $gatewayRef, 'paid_at' => $paidAt, 'notes' => $notes, 'source' => $source, 'status' => 'confirmed', 'recorded_by' => $by]);
-        $inv->recalculate();
+        // The invoice row is locked while its balance is checked and the payment is added, so two payments arriving together
+        // (a guest paying twice, a webhook and a page load) cannot both pass the check against the same old balance.
+        $p = DB::transaction(function () use ($inv, $amount, $method, $paidAt, $reference, $notes, $source, $by, $gatewayRef) {
+            $fresh = $this->lock($inv);
+            if ($gatewayRef && ($existing = Payment::where('invoice_id', $fresh->id)->where('gateway_ref', $gatewayRef)->first())) {
+                return $existing;
+            }
+            if ($fresh->status === 'void') {
+                throw new InvoiceRuleException('invoice_locked', __('This invoice is void.'));
+            }
+            if ($amount <= 0) {
+                throw new InvoiceRuleException('invalid_amount', __('The amount must be more than zero.'));
+            }
+            if ($amount > $fresh->balance() + 0.001) {
+                throw new InvoiceRuleException('exceeds_balance', __('That is more than the outstanding balance of :bal.', ['bal' => number_format($fresh->balance(), 2)]));
+            }
+            $made = Payment::create(['vendor_id' => $fresh->vendor_id, 'invoice_id' => $fresh->id, 'amount' => $amount, 'method' => $method, 'reference' => $reference, 'gateway_ref' => $gatewayRef, 'paid_at' => $paidAt, 'notes' => $notes, 'source' => $source, 'status' => 'confirmed', 'recorded_by' => $by]);
+            $fresh->recalculate();
+
+            return $made;
+        }, 3);
+        $inv->refresh();
         \App\Support\Audit::log('payment.recorded', $inv, ['payment_id' => $p->id, 'amount' => $amount, 'method' => $method, 'source' => $source], (int) $inv->vendor_id, $inv->invoice_number . ': ' . number_format($amount, 2) . ' ' . $inv->currency . ' by ' . $method);
         if ($receipt) {
             $this->sendReceipt($inv->fresh(), $p);
@@ -110,11 +135,19 @@ class InvoiceBook
         if ($p->status !== 'pending') {
             throw new InvoiceRuleException('not_pending', __('That payment is not waiting for confirmation.'));
         }
-        if ((float) $p->amount > $inv->balance() + 0.001) {
-            throw new InvoiceRuleException('exceeds_balance', __('That is more than the outstanding balance of :bal.', ['bal' => number_format($inv->balance(), 2)]));
-        }
-        $p->update(['status' => 'confirmed', 'recorded_by' => $by]);
-        $inv->recalculate();
+        DB::transaction(function () use ($inv, $p, $by) {
+            $fresh = $this->lock($inv);
+            $p->refresh();
+            if ($p->status !== 'pending') {
+                throw new InvoiceRuleException('not_pending', __('That payment is not waiting for confirmation.'));
+            }
+            if ((float) $p->amount > $fresh->balance() + 0.001) {
+                throw new InvoiceRuleException('exceeds_balance', __('That is more than the outstanding balance of :bal.', ['bal' => number_format($fresh->balance(), 2)]));
+            }
+            $p->update(['status' => 'confirmed', 'recorded_by' => $by]);
+            $fresh->recalculate();
+        });
+        $inv->refresh();
         \App\Support\Audit::log('payment.confirmed', $inv, ['payment_id' => $p->id, 'amount' => (float) $p->amount], (int) $inv->vendor_id, $inv->invoice_number . ': bank transfer confirmed');
         $this->sendReceipt($inv->fresh(), $p->fresh());
 
@@ -224,9 +257,15 @@ class InvoiceBook
 
     public function removePayment(Invoice $inv, Payment $p): void
     {
+        if ($p->source === 'booking') {
+            throw new InvoiceRuleException('booking_payment', __('This payment was recorded on the booking. Refund it there and the invoice follows.'));
+        }
         \App\Support\Audit::log('payment.removed', $inv, ['payment_id' => $p->id, 'amount' => (float) $p->amount, 'method' => $p->method], (int) $inv->vendor_id, $inv->invoice_number . ': payment removed');
-        $p->delete();
-        $inv->recalculate();
+        DB::transaction(function () use ($inv, $p) {
+            $this->lock($inv);
+            $p->delete();   // the ledger posts the reversing entry
+            $inv->refresh()->recalculate();
+        });
     }
 
     /** Void, never delete, a document that has been issued: it is a record, not a draft. */
@@ -333,11 +372,17 @@ class InvoiceBook
         if ($inv->type !== 'invoice') {
             throw new InvoiceRuleException('not_an_invoice', __('Refunds are recorded against invoices.'));
         }
-        if ($amount <= 0 || $amount > $inv->refundDue() + 0.001) {
-            throw new InvoiceRuleException('exceeds_refund_due', __('That is more than the :due due back to the client. Issue a credit note first.', ['due' => number_format($inv->refundDue(), 2)]));
-        }
-        $p = Payment::create(['vendor_id' => $inv->vendor_id, 'invoice_id' => $inv->id, 'amount' => -$amount, 'method' => $method, 'reference' => $reference, 'paid_at' => $paidAt, 'notes' => $notes ?: __('Refund'), 'source' => 'refund', 'status' => 'confirmed', 'recorded_by' => $by]);
-        $inv->recalculate();
+        $p = DB::transaction(function () use ($inv, $amount, $method, $paidAt, $reference, $notes, $by) {
+            $inv = $this->lock($inv);
+            if ($amount <= 0 || $amount > $inv->refundDue() + 0.001) {
+                throw new InvoiceRuleException('exceeds_refund_due', __('That is more than the :due due back to the client. Issue a credit note first.', ['due' => number_format($inv->refundDue(), 2)]));
+            }
+            $made = Payment::create(['vendor_id' => $inv->vendor_id, 'invoice_id' => $inv->id, 'amount' => -$amount, 'method' => $method, 'reference' => $reference, 'paid_at' => $paidAt, 'notes' => $notes ?: __('Refund'), 'source' => 'refund', 'status' => 'confirmed', 'recorded_by' => $by]);
+            $inv->recalculate();
+
+            return $made;
+        });
+        $inv->refresh();
         \App\Support\Audit::log('payment.refunded', $inv, ['payment_id' => $p->id, 'amount' => $amount, 'method' => $method], (int) $inv->vendor_id, $inv->invoice_number . ': refund of ' . number_format($amount, 2));
 
         return $p;

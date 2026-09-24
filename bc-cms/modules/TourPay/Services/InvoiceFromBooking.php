@@ -69,16 +69,13 @@ class InvoiceFromBooking
             InvoiceItem::create(['vendor_id' => $vendorId, 'invoice_id' => $invoice->id, 'name' => Str::limit($desc, 185, ''), 'quantity' => $qty, 'unit_price' => $price, 'sort_order' => $i + 1]);
         }
 
-        // What the guest has already paid through the booking.
-        $paid = round((float) $booking->paid, 2);
-        if ($paid > 0) {
-            $method = in_array(strtolower((string) $booking->gateway), ['paypal', 'stripe', 'paystack', 'payrexx'], true) ? 'card' : 'other';
-            Payment::create([
-                'vendor_id' => $vendorId, 'invoice_id' => $invoice->id, 'amount' => min($paid, max(0.0, (float) $booking->total)), 'method' => $method,
-                'reference' => $booking->code ? strtoupper(substr($booking->code, 0, 8)) : null, 'paid_at' => now()->toDateString(),
-                'notes' => 'Paid through the booking', 'source' => 'booking',
-            ]);
-        }
+        // What the guest has already paid through the booking comes from the ledger, entry by entry, so the invoice and the
+        // booking always agree and later payments and refunds on the booking reach the invoice too.
+        $ledger = app(\Modules\TourPay\Services\Ledger::class);
+        app(\Modules\TourPay\Services\MoneyBackfill::class)->opening($booking);   // a booking that predates the ledger is brought in first
+        $invoice->recalculate();
+        \Modules\TourPay\Models\LedgerEntry::withoutVendorScope()->where('booking_id', $booking->id)->whereNull('invoice_id')->whereIn('kind', ['payment', 'refund'])->orderBy('id')->get()
+            ->each(fn ($e) => $ledger->allocateToInvoice($e, $booking));
         $invoice->recalculate();
 
         return [$invoice->fresh(), true];

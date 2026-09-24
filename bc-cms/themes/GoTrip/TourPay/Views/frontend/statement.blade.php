@@ -37,11 +37,13 @@
 
 <div class="tp-stats">
     @foreach($currencies as $c)
-    @php $t = $totals[$c] ?? ['invoice' => 0, 'payout' => 0, 'expense' => 0, 'net' => 0]; @endphp
+    @php $t = $totals[$c] ?? ['invoice' => 0, 'booking' => 0, 'payout' => 0, 'expense' => 0, 'net' => 0]; @endphp
     <div class="tp-stat"><div class="l">{{ $c }} · {{ __('Invoices paid') }}</div><div class="v">{{ number_format($t['invoice'], 2) }}</div></div>
+    <div class="tp-stat"><div class="l">{{ $c }} · {{ __('Booking payments') }}</div><div class="v">{{ number_format($t['booking'], 2) }}</div></div>
     <div class="tp-stat"><div class="l">{{ $c }} · {{ __('Paid out by platform') }}</div><div class="v">{{ number_format($t['payout'], 2) }}</div></div>
     <div class="tp-stat"><div class="l">{{ $c }} · {{ __('Expenses') }}</div><div class="v">{{ number_format($t['expense'], 2) }}</div></div>
     <div class="tp-stat"><div class="l">{{ $c }} · {{ __('Net') }}</div><div class="v {{ $t['net'] < 0 ? 'tp-out' : '' }}">{{ number_format($t['net'], 2) }}</div><div class="c">{{ __('Opening') }} {{ number_format($opening[$c] ?? 0, 2) }}</div></div>
+    @if(!empty($held[$c]))<div class="tp-stat"><div class="l">{{ $c }} · {{ __('Held by platform') }}</div><div class="v">{{ number_format($held[$c], 2) }}</div><div class="c">{{ __('Collected for you, not yet paid out') }}</div></div>@endif
     @endforeach
     @if(empty($currencies))<div class="tp-stat"><div class="l">{{ __('Nothing recorded yet') }}</div></div>@endif
 </div>
@@ -73,16 +75,16 @@
     @foreach($entries as $e)
         <tr>
             <td>{{ $e['date']->format('d M Y') }}</td>
-            <td><span class="tp-pill {{ $e['kind'] }}">{{ __($kinds[$e['kind']]) }}</span>@if($e['note'] === __('Refund')) <span class="tp-pill expense">{{ __('Refund') }}</span>@endif</td>
+            <td><span class="tp-pill {{ $e['kind'] }}">{{ __($kinds[$e['kind']]) }}</span>@if($e['note'] !== '') <span class="tp-pill expense">{{ $e['note'] }}</span>@endif</td>
             <td>{{ $e['ref'] }}</td><td>{{ $e['who'] }}</td><td>{{ ucfirst(str_replace('_', ' ', $e['method'])) }}</td><td>{{ $e['cur'] }}</td>
-            <td class="n tp-in">{{ $e['in'] ? number_format($e['in'], 2) : '' }}</td>
+            <td class="n tp-in">{{ $e['in'] ? number_format($e['in'], 2) : '' }}@if($e['held'])<span class="tp-pill">{{ __('Held by platform') }} {{ number_format($e['held'], 2) }}</span>@endif</td>
             <td class="n tp-out">{{ $e['out'] ? number_format($e['out'], 2) : '' }}</td>
             <td class="n"><strong>{{ number_format($e['balance'], 2) }}</strong></td>
         </tr>
     @endforeach
     </tbody>
 </table>
-<div style="padding:12px 18px;font-size:12px;color:#999;">{{ __('Invoice payments count once the payment is confirmed; refunds come off. Expenses are payments made on supplier bills. Payouts are what the platform has paid to you (in the platform currency). Each currency keeps its own balance and is never converted.') }}</div>
+<div style="padding:12px 18px;font-size:12px;color:#999;">{{ __('Invoice payments count once the payment is confirmed; refunds come off. Expenses are payments made on supplier bills. Money the platform collected for you is shown as held until it is paid out; the payout is what lands in your account (in the platform currency). Each currency keeps its own balance and is never converted.') }}</div>
 @endif
 </div>
 </div>

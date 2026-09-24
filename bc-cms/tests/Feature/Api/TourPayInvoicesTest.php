@@ -84,8 +84,9 @@ class TourPayInvoicesTest extends ApiTestCase
         $this->assertEquals(0, $i->fresh()->amount_paid);
     }
 
-    public function test_mark_paid_records_the_balance_and_never_completes_the_booking(): void
+    public function test_mark_paid_records_the_balance_and_the_booking_follows_the_money_but_is_never_completed(): void
     {
+        \Illuminate\Support\Facades\Event::fake([\Modules\Booking\Events\BookingUpdatedEvent::class]);
         $booking = DB::table('bc_bookings')->insertGetId(['code' => 'ZZ1', 'vendor_id' => $this->vendor->id, 'object_model' => 'tour', 'object_id' => 1, 'total_guests' => 1, 'total' => 100, 'status' => 'unpaid', 'email' => 'a@b.co', 'start_date' => now()->addDays(9), 'created_at' => now(), 'updated_at' => now()]);
         $i = $this->invoice(['booking_id' => $booking], [['Tour', 1, 100]]);
         $this->book->issue($i);
@@ -93,7 +94,9 @@ class TourPayInvoicesTest extends ApiTestCase
         $paid = $this->book->markPaid($i->fresh(), 'bank');
         $this->assertSame('paid', $paid->status);
         $this->assertEquals(2, $paid->payments()->count());
-        $this->assertSame('unpaid', DB::table('bc_bookings')->where('id', $booking)->value('status'), 'a paid invoice does not finish the trip');
+        // One ledger: the money paid on the invoice is money paid on the booking, so the booking shows paid. It is never marked completed: the trip still has to happen.
+        $this->assertSame('paid', DB::table('bc_bookings')->where('id', $booking)->value('status'));
+        $this->assertEquals(100, DB::table('bc_bookings')->where('id', $booking)->value('paid'));
     }
 
     public function test_tax_inclusive_and_exclusive_and_discount(): void

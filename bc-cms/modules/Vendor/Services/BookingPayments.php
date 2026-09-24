@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 use Modules\Booking\Models\Booking;
 use Modules\Vendor\Models\BookingLedger;
+use Modules\TourPay\Services\Ledger;
 use Modules\Vendor\Models\BookingPaymentPlan;
 
 /**
@@ -114,7 +115,16 @@ class BookingPayments
         }
 
         return DB::transaction(function () use ($booking, $amount, $method, $reference, $note, $planId, $by) {
+            // Lock the booking so two payments arriving together are counted one after the other, never both against the same old total.
+            $booking = Booking::lockForUpdate()->findOrFail($booking->id);
+
+            // A double click or a retried request: the same payment a moment ago is the one already recorded.
+            if ($dupe = $this->justRecorded($booking, 'payment', $amount, $method, $reference)) {
+                return $dupe;
+            }
+
             $entry = BookingLedger::create([
+                'vendor_id'   => $booking->vendor_id,   // explicit: a background job or the API has no logged-in business to stamp it from
                 'booking_id'  => $booking->id,
                 'type'        => 'payment',
                 'amount'      => round($amount, 2),
@@ -125,14 +135,13 @@ class BookingPayments
                 'occurred_at' => now(),
                 'created_by'  => $by,
             ]);
-
-            $booking->paid = round((float) $booking->paid + $amount, 2);
+            \Modules\TourPay\Services\LedgerHooks::mirrorBookingLedger($entry, $booking);
+            $booking->refresh();
             $this->settlePlan($booking, $amount, $planId);
-            $this->followTheMoney($booking);
             $this->announce($booking, 'booking.payment_received', $entry);
 
             return $entry;
-        });
+        }, 3);
     }
 
     /**
@@ -142,16 +151,22 @@ class BookingPayments
      */
     public function recordRefund(Booking $booking, float $amount, string $method = 'other', ?string $reference = null, ?string $note = null, ?int $by = null, bool $cancel = false): BookingLedger
     {
-        $paid = (float) $booking->paid;
         if ($amount <= 0) {
             throw new InvalidArgumentException('A refund has to be more than nothing.');
         }
-        if ($amount > $paid + 0.005) {
-            throw new InvalidArgumentException('That is more than has been paid.');
-        }
 
         return DB::transaction(function () use ($booking, $amount, $method, $reference, $note, $by, $cancel) {
+            $booking = Booking::lockForUpdate()->findOrFail($booking->id);
+            $paid = app(Ledger::class)->bookingPaid((int) $booking->id);
+            if ($amount > $paid + 0.005) {
+                throw new InvalidArgumentException('That is more than has been paid.');
+            }
+            if ($dupe = $this->justRecorded($booking, 'refund', $amount, $method, $reference)) {
+                return $dupe;
+            }
+
             $entry = BookingLedger::create([
+                'vendor_id'   => $booking->vendor_id,
                 'booking_id'  => $booking->id,
                 'type'        => 'refund',
                 'amount'      => round($amount, 2),
@@ -161,18 +176,27 @@ class BookingPayments
                 'occurred_at' => now(),
                 'created_by'  => $by,
             ]);
-
-            $booking->paid = max(0, round((float) $booking->paid - $amount, 2));
-            if ($cancel && $booking->paid <= 0 && $booking->status !== Booking::COMPLETED) {
+            \Modules\TourPay\Services\LedgerHooks::mirrorBookingLedger($entry, $booking);
+            $booking->refresh();
+            if ($cancel && (float) $booking->paid <= 0 && $booking->status !== Booking::COMPLETED) {
                 $booking->status = Booking::CANCELLED;
                 $booking->save();
-            } else {
-                $this->followTheMoney($booking, allowDowngrade: true);
             }
             $this->announce($booking, 'booking.refund_recorded', $entry);
 
             return $entry;
-        });
+        }, 3);
+    }
+
+    /** The identical entry recorded in the last minute, if any (only when a reference makes it identifiable). */
+    private function justRecorded(Booking $booking, string $type, float $amount, string $method, ?string $reference): ?BookingLedger
+    {
+        if ($reference === null || trim($reference) === '') {
+            return null;
+        }
+
+        return BookingLedger::where('booking_id', $booking->id)->where('type', $type)->where('amount', round($amount, 2))->where('method', $method)->where('reference', $reference)
+            ->where('occurred_at', '>=', now()->subMinute())->orderByDesc('id')->first();
     }
 
     private function announce(Booking $booking, string $type, BookingLedger $entry): void
@@ -184,7 +208,7 @@ class BookingPayments
     }
 
     /** Marks unpaid rows paid, in order, as far as [$amount] reaches (or just the one given). */
-    private function settlePlan(Booking $booking, float $amount, ?int $planId): void
+    public function settlePlan(Booking $booking, float $amount, ?int $planId): void
     {
         $rows = BookingPaymentPlan::where('booking_id', $booking->id)->where('status', 'pending')
             ->when($planId, fn ($q) => $q->where('id', $planId))
@@ -200,8 +224,8 @@ class BookingPayments
         }
     }
 
-    /** Status follows paid against total, the way the gateways do it. */
-    private function followTheMoney(Booking $booking, bool $allowDowngrade = false): void
+    /** Lets the booking's status follow its paid amount (paid, part paid, back to unpaid after a refund). */
+    public function follow(Booking $booking, bool $allowDowngrade = false): void
     {
         $total = (float) $booking->total;
         if ((float) $booking->paid >= $total && $total > 0) {

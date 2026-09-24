@@ -30,12 +30,14 @@ class TourPayStatementTest extends ApiTestCase
         $theirs = $this->invoice($this->other->id, 'USD', 'Bob Other');
         DB::table('bc_tourpay_payments')->insert(['vendor_id' => $this->other->id, 'invoice_id' => $theirs, 'amount' => 777, 'method' => 'bank', 'paid_at' => now()->toDateString(), 'status' => 'confirmed', 'created_at' => now(), 'updated_at' => now()]);
 
+        // These rows were inserted straight into the tables, so load them into the ledger the way existing data is loaded.
+        app(\Modules\TourPay\Services\MoneyBackfill::class)->run();
         $this->actingAs($this->vendor);
         $svc = app(\Modules\TourPay\Services\AccountStatement::class);
         $r = $svc->build(now()->subMonth()->startOfDay(), now()->endOfDay());
         $this->assertSame(['invoice', 'invoice', 'expense', 'payout'], array_column($r['entries'], 'kind'));
         $this->assertEquals([300, 260, 160, 235], array_map('floatval', array_column($r['entries'], 'balance')));
-        $this->assertEquals(['invoice' => 260, 'payout' => 75, 'expense' => 100, 'net' => 235], $r['totals']['USD']);
+        $this->assertEquals(['invoice' => 260, 'booking' => 0, 'payout' => 75, 'expense' => 100, 'net' => 235], $r['totals']['USD']);
 
         $page = $this->get(route('tourpay.vendor.statement'));
         $page->assertOk()->assertSee('Safari Lodge')->assertSee('Alice Guest')->assertSee('Paid out by platform')->assertDontSee('Bob Other')->assertDontSee('777.00')->assertDontSee('999.00');

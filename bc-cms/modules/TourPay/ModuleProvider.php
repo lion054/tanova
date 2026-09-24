@@ -10,8 +10,10 @@ class ModuleProvider extends ModuleServiceProvider
     {
         $this->loadMigrationsFrom(__DIR__ . '/Migrations');
         if ($this->app->runningInConsole()) {
-            $this->commands([\Modules\TourPay\Commands\ReconcilePayments::class, \Modules\TourPay\Commands\SendReminders::class]);
+            $this->commands([\Modules\TourPay\Commands\ReconcilePayments::class, \Modules\TourPay\Commands\SendReminders::class, \Modules\TourPay\Commands\MoneyBackfillCommand::class, \Modules\TourPay\Commands\MoneyReconcileCommand::class]);
         }
+
+        \Modules\TourPay\Services\LedgerHooks::register();
 
         PermissionHelper::add([
             'tourpay_view',

@@ -84,14 +84,11 @@ class VendorBillController extends VendorApiController
     {
         $bill = Bill::findOrFail($id);
         $d = $request->validate(['amount' => ['required', 'numeric', 'min:0.01'], 'method' => ['required', Rule::in(['bank', 'cash', 'card', 'mobile_money', 'other'])], 'paid_at' => ['nullable', 'date'], 'reference' => ['nullable', 'string', 'max:191'], 'notes' => ['nullable', 'string', 'max:1000']]);
-        if ($bill->status === 'void') {
-            return $this->error('bill_void', 'This bill is void.', 409);
+        try {
+            app(\Modules\TourPay\Services\BillBook::class)->pay($bill, $d);
+        } catch (\Modules\TourPay\Services\InvoiceRuleException $e) {
+            return $this->error($e->errorCode, $e->errorCode === 'bill_void' ? 'This bill is void.' : 'That is more than is still owed on this bill.', $e->errorCode === 'bill_void' ? 409 : 422);
         }
-        if ($d['amount'] > $bill->balance() + 0.001) {
-            return $this->error('exceeds_balance', 'That is more than is still owed on this bill.', 422);
-        }
-        BillPayment::create($d + ['vendor_id' => $bill->vendor_id, 'bill_id' => $bill->id, 'paid_at' => $d['paid_at'] ?? now()->toDateString()]);
-        $bill->recalculate();
 
         return $this->created($this->shape($bill->fresh(), true));
     }

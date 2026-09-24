@@ -61,3 +61,6 @@ Schedule::call(fn () => DB::table('bc_vendor_idempotency_keys')->where('created_
 
 // Proof for /health that cron is really calling the scheduler.
 Schedule::call(fn () => \App\Support\Health::beat())->everyMinute()->name('health-heartbeat');
+
+// Every night: do bookings, invoices, bills and payouts still agree with the money ledger? /health goes red when they do not.
+Schedule::command(\Modules\TourPay\Commands\MoneyReconcileCommand::class)->dailyAt('03:30')->withoutOverlapping();

@@ -22,7 +22,7 @@ class BookingPaymentsTest extends TestCase
 {
     private const VENDOR = 101;
 
-    private array $tables = ['bc_booking_ledger', 'bc_booking_payment_plan', 'bc_booking_meta', 'bc_bookings'];
+    private array $tables = ['bc_money_ledger', 'bc_tourpay_payments', 'bc_tourpay_invoices', 'bc_tourpay_settings', 'bc_booking_ledger', 'bc_booking_payment_plan', 'bc_booking_meta', 'bc_bookings'];
 
     protected function setUp(): void
     {
@@ -89,6 +89,55 @@ class BookingPaymentsTest extends TestCase
             $t->timestamp('occurred_at')->nullable();
             $t->unsignedBigInteger('created_by')->nullable();
             $t->timestamps();
+        });
+
+        // The money ledger, and the invoice tables the ledger looks at (there is no invoice in these tests).
+        Schema::create('bc_money_ledger', function (Blueprint $t) {
+            $t->bigIncrements('id');
+            $t->unsignedBigInteger('vendor_id');
+            $t->string('entry_key', 120)->unique();
+            $t->string('kind', 12);
+            $t->decimal('amount', 14, 2);
+            $t->char('currency', 3);
+            $t->string('held_by', 10)->default('vendor');
+            $t->string('method', 30)->nullable();
+            $t->string('source', 30);
+            $t->unsignedBigInteger('source_id')->nullable();
+            $t->unsignedBigInteger('booking_id')->nullable();
+            $t->unsignedBigInteger('invoice_id')->nullable();
+            $t->unsignedBigInteger('bill_id')->nullable();
+            $t->unsignedBigInteger('payout_id')->nullable();
+            $t->unsignedBigInteger('reverses_id')->nullable();
+            $t->string('reference', 120)->nullable();
+            $t->string('note', 255)->nullable();
+            $t->char('base_currency', 3)->nullable();
+            $t->decimal('base_amount', 14, 2)->nullable();
+            $t->dateTime('occurred_at');
+            $t->unsignedBigInteger('created_by')->nullable();
+            $t->timestamp('created_at')->useCurrent();
+        });
+        Schema::create('bc_tourpay_invoices', function (Blueprint $t) {
+            $t->id();
+            $t->unsignedBigInteger('vendor_id')->nullable();
+            $t->unsignedBigInteger('booking_id')->nullable();
+            $t->string('type')->nullable();
+            $t->string('status')->nullable();
+            $t->string('currency', 8)->nullable();
+            $t->decimal('total', 14, 2)->default(0);
+            $t->decimal('credit_total', 14, 2)->default(0);
+            $t->softDeletes();
+        });
+        Schema::create('bc_tourpay_payments', function (Blueprint $t) {
+            $t->id();
+            $t->unsignedBigInteger('invoice_id');
+            $t->string('status')->nullable();
+            $t->decimal('amount', 14, 2)->default(0);
+        });
+        Schema::create('bc_tourpay_settings', function (Blueprint $t) {
+            $t->id();
+            $t->unsignedBigInteger('vendor_id')->nullable();
+            $t->string('base_currency', 3)->nullable();
+            $t->text('rates')->nullable();
         });
 
         $u = new User();

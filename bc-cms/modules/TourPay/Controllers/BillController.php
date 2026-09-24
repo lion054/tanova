@@ -67,14 +67,12 @@ class BillController extends FrontendController
     {
         $bill = Bill::findOrFail($id);
         $d = $request->validate(['amount' => ['required', 'numeric', 'min:0.01'], 'method' => ['required', Rule::in(['bank', 'cash', 'card', 'mobile_money', 'other'])], 'paid_at' => ['nullable', 'date', 'before_or_equal:today'], 'reference' => ['nullable', 'string', 'max:191'], 'notes' => ['nullable', 'string', 'max:1000']]);
-        if ($bill->status === 'void') {
-            return back()->with('error', __('This bill is void.'));
+        try {
+            app(\Modules\TourPay\Services\BillBook::class)->pay($bill, $d);
+        } catch (\Modules\TourPay\Services\InvoiceRuleException $e) {
+            return back()->withInput()->with('error', $e->getMessage());
         }
-        if ($d['amount'] > $bill->balance() + 0.001) {
-            return back()->withInput()->with('error', __('That is more than the :bal still owed on this bill.', ['bal' => number_format($bill->balance(), 2)]));
-        }
-        BillPayment::create($d + ['vendor_id' => $bill->vendor_id, 'bill_id' => $bill->id, 'paid_at' => $d['paid_at'] ?? now()->toDateString()]);
-        $bill->recalculate();
+        $bill->refresh();
 
         return back()->with('success', $bill->status === 'paid' ? __('Bill paid in full.') : __('Payment recorded.'));
     }
