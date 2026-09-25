@@ -78,7 +78,7 @@
     {{-- Actions --}}
     @if($connected)
         <div class="int-card__actions">
-            <form method="POST" action="{{ route('admin.integrations.test', $item['slug']) }}" class="d-inline">
+            <form method="POST" action="{{ $nav->test($item['slug']) }}" class="d-inline">
                 @csrf
                 <button type="submit" class="tp-ab-btn tp-ab-btn--outline">
                     <i class="ion ion-ios-pulse"></i> Test Connection
@@ -89,7 +89,7 @@
                     data-bs-target="#cfg-{{ $item['slug'] }}">
                 <i class="ion ion-ios-create"></i> Edit Credentials
             </button>
-            <form method="POST" action="{{ route('admin.integrations.disconnect', $item['slug']) }}" class="d-inline ms-auto">
+            <form method="POST" action="{{ $nav->disconnect($item['slug']) }}" class="d-inline ms-auto">
                 @csrf
                 <button type="submit" class="tp-ab-btn tp-ab-btn--danger"
                         onclick="return confirm('Remove {{ $item['name'] }} integration?')">
@@ -101,10 +101,10 @@
         {{-- Wetu panel --}}
         @if(!empty($item['panel']) && $item['panel'] === 'wetu')
         <div class="int-card__actions" style="border-top:none;padding-top:0">
-            <a href="{{ route('admin.integrations.wetu.itineraries') }}" class="tp-ab-btn tp-ab-btn--primary">
+            <a href="{{ $nav->wetuItineraries() }}" class="tp-ab-btn tp-ab-btn--primary">
                 <i class="ion ion-ios-list"></i> Browse Itineraries
             </a>
-            <form method="POST" action="{{ route('admin.integrations.wetu.sync') }}" class="d-inline">
+            <form method="POST" action="{{ $nav->wetuSync() }}" class="d-inline">
                 @csrf
                 <button type="submit" class="tp-ab-btn tp-ab-btn--outline">
                     <i class="ion ion-ios-refresh"></i> Sync Itineraries
@@ -126,7 +126,7 @@
     {{-- Credentials form --}}
     @if(!empty($item['fields']))
     <div id="cfg-{{ $item['slug'] }}" class="collapse int-card__form {{ $error ? 'show' : '' }}">
-        <form method="POST" action="{{ route('admin.integrations.connect', $item['slug']) }}">
+        <form method="POST" action="{{ $nav->connect($item['slug']) }}">
             @csrf
             @foreach($item['fields'] ?? [] as $field)
             <div class="tp-field">

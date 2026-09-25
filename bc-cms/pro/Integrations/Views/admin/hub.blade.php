@@ -154,7 +154,12 @@
                 <span style="opacity:.7;font-size:12px">{{ $ri['name'] }}{{ !$loop->last ? ' · ' : '' }}</span>
             @endforeach
         </div>
-        <a href="{{ route('admin.integrations.category', 'stay_os') }}" class="hub-required__btn">
+        @php
+            // Straight to the category of the first required service that is still not connected.
+            $firstPending = $requiredItems->first(fn($i) => ($integrations[$i['slug']] ?? '') !== 'connected');
+            $pendingCat   = collect($all)->filter(fn($items) => collect($items)->contains(fn($i) => $i['slug'] === ($firstPending['slug'] ?? null)))->keys()->first() ?? 'stay_os';
+        @endphp
+        <a href="{{ $nav->category($pendingCat) }}" class="hub-required__btn">
             <i class="ion ion-ios-settings"></i> Set Up Now
         </a>
     </div>
@@ -173,7 +178,7 @@
             $firstItem  = $all[$key][0] ?? null;
             $firstLogo  = $firstItem['logo_domain'] ?? null;
         @endphp
-        <a href="{{ route('admin.integrations.category', $key) }}"
+        <a href="{{ $nav->category($key) }}"
            class="os-card {{ $allConn ? 'os-card--all-connected' : '' }}">
             <div class="os-card__top">
                 <div class="os-card__icon">
@@ -222,7 +227,7 @@
             @foreach($allConnected as $slug => $_)
             @php $def = \Pro\Integrations\Services\IntegrationRegistry::find($slug); @endphp
             @if($def)
-            <a href="{{ route('admin.integrations.category', $def['category'] ?? 'stay_os') }}"
+            <a href="{{ $nav->category($def['category'] ?? 'stay_os') }}"
                class="hub-pill">
                 <span class="hub-pill__dot"></span>
                 @if(!empty($def['logo_domain']))

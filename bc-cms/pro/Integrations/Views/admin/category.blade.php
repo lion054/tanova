@@ -65,7 +65,7 @@
     {{-- Breadcrumb --}}
     <nav class="mb-3" aria-label="breadcrumb">
         <ol class="breadcrumb small mb-0">
-            <li class="breadcrumb-item"><a href="{{ route('admin.integrations.hub') }}">Integrations</a></li>
+            <li class="breadcrumb-item"><a href="{{ $nav->hub() }}">Integrations</a></li>
             <li class="breadcrumb-item active">{{ $catMeta['label'] }}</li>
         </ol>
     </nav>
@@ -87,7 +87,7 @@
                 <span style="color:#aaa"> / {{ $totalCount }} connected</span>
             </div>
         </div>
-        <a href="{{ route('admin.integrations.hub') }}" class="cat-hero__back">
+        <a href="{{ $nav->hub() }}" class="cat-hero__back">
             <i class="ion ion-ios-arrow-back"></i> All Integrations
         </a>
     </div>
@@ -166,7 +166,7 @@
             No integrations have been added to this category yet.
             They will appear here once configured.
         </div>
-        <a href="{{ route('admin.integrations.hub') }}"
+        <a href="{{ $nav->hub() }}"
            style="display:inline-flex;align-items:center;gap:6px;margin-top:20px;padding:9px 18px;
                   border-radius:7px;border:1.5px solid #e0e0e0;font-size:12px;font-weight:600;
                   color:#0a0a0a;text-decoration:none;background:#fff;transition:border-color .12s"

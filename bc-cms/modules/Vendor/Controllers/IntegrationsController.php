@@ -11,49 +11,6 @@ use Illuminate\Support\Facades\Crypt;
 class IntegrationsController extends Controller
 {
     /**
-     * Show integrations dashboard
-     */
-    public function index()
-    {
-        $vendor = Auth::user();
-
-        $integrations = [
-            'whatsapp' => [
-                'name' => 'WhatsApp Business',
-                'icon' => 'whatsapp',
-                'color' => '#25D366',
-                'connected' => !empty($vendor->whatsapp_phone),
-                'enabled' => $vendor->whatsapp_enabled ?? false,
-                'phone' => $vendor->whatsapp_phone ?? null,
-                'description' => 'Chat with customers on WhatsApp',
-            ],
-            'facebook' => [
-                'name' => 'Facebook Messenger',
-                'icon' => 'facebook',
-                'color' => '#1877F2',
-                'connected' => !empty($vendor->facebook_page_id),
-                'enabled' => $vendor->facebook_enabled ?? false,
-                'page_id' => $vendor->facebook_page_id ?? null,
-                'description' => 'Chat with customers on Facebook Messenger',
-            ],
-            'telegram' => [
-                'name' => 'Telegram Bot',
-                'icon' => 'telegram',
-                'color' => '#0088cc',
-                'connected' => !empty($vendor->telegram_bot_token),
-                'enabled' => $vendor->telegram_enabled ?? false,
-                'bot_token' => $vendor->telegram_bot_token ? '●●●●●●●●' : null,
-                'description' => 'Chat with customers on Telegram',
-            ],
-        ];
-
-        return view('vendor::frontend.integrations.index', [
-            'vendor' => $vendor,
-            'integrations' => $integrations,
-        ]);
-    }
-
-    /**
      * Setup WhatsApp Business
      */
     public function setupWhatsApp(Request $request)

@@ -224,7 +224,17 @@ Route::group(['prefix' => 'vendor', 'middleware' => ['auth']], function () {
 
 // ── Integrations (Multi-channel setup) ────────────────────────────────────
 Route::group(['prefix' => 'user/integrations', 'middleware' => ['auth']], function () {
-    Route::get('/',                     'IntegrationsController@index')->name('user.integrations.index');
+    // The same hub as /admin/integrations (same controller and views), on a business's own address: categories, connect / test / disconnect
+    // with the signed-in business's own credentials, and its messaging channels as cards in Communications.
+    $hub = \Pro\Integrations\Controllers\IntegrationsAdminController::class;
+    Route::get('/',                                [$hub, 'hub'])->name('user.integrations.index');
+    Route::get('/category/{cat}',                  [$hub, 'category'])->name('user.integrations.category');
+    Route::post('/app/{slug}/connect',             [$hub, 'connect'])->name('user.integrations.app.connect');
+    Route::post('/app/{slug}/disconnect',          [$hub, 'disconnect'])->name('user.integrations.app.disconnect');
+    Route::post('/app/{slug}/test',                [$hub, 'test'])->name('user.integrations.app.test');
+    Route::get('/wetu/itineraries',                [$hub, 'wetuItineraries'])->name('user.integrations.wetu.itineraries');
+    Route::post('/wetu/sync',                      [$hub, 'wetuSync'])->name('user.integrations.wetu.sync');
+    Route::post('/wetu/import/{identifier}',       [$hub, 'wetuImport'])->name('user.integrations.wetu.import');
 
     Route::match(['get', 'post'], '/whatsapp',     'IntegrationsController@setupWhatsApp')->name('user.integrations.whatsapp');
     Route::match(['get', 'post'], '/facebook',     'IntegrationsController@setupFacebook')->name('user.integrations.facebook');

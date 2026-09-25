@@ -24,8 +24,10 @@ Route::group([
     Route::post('/wetu/sync',                 [IntegrationsAdminController::class, 'wetuSync'])->name('wetu.sync');
     Route::post('/wetu/import/{identifier}',  [IntegrationsAdminController::class, 'wetuImport'])->name('wetu.import');
 
-    // Legals
-    Route::get('/legals',                     [IntegrationsAdminController::class, 'legals'])->name('legals');
-    Route::get('/legals/{doc}',               [IntegrationsAdminController::class, 'legalEdit'])->name('legals.edit');
-    Route::post('/legals/{doc}',              [IntegrationsAdminController::class, 'legalSave'])->name('legals.save');
+    // Legals: the platform's own documents. Staff only: a business signed in here must not be able to rewrite them.
+    Route::middleware('dashboard')->group(function () {
+        Route::get('/legals',                 [IntegrationsAdminController::class, 'legals'])->name('legals');
+        Route::get('/legals/{doc}',           [IntegrationsAdminController::class, 'legalEdit'])->name('legals.edit');
+        Route::post('/legals/{doc}',          [IntegrationsAdminController::class, 'legalSave'])->name('legals.save');
+    });
 });

@@ -137,13 +137,13 @@
             <h1 class="portal-h1">Itineraries <em>from Wetu</em></h1>
         </div>
         <div class="d-flex gap-2 align-items-center">
-            <form method="POST" action="{{ route('admin.integrations.wetu.sync') }}">
+            <form method="POST" action="{{ $nav->wetuSync() }}">
                 @csrf
                 <button type="submit" class="tp-ab-btn tp-ab-btn--outline">
                     <i class="ion ion-ios-refresh"></i> Sync Itineraries
                 </button>
             </form>
-            <a href="{{ route('admin.integrations.category', 'exp_os') }}" class="tp-ab-btn tp-ab-btn--ghost"
+            <a href="{{ $nav->category('exp_os') }}" class="tp-ab-btn tp-ab-btn--ghost"
                style="text-decoration:none">
                 <i class="ion ion-ios-arrow-back"></i> Exp OS
             </a>
@@ -208,7 +208,7 @@
         </div>
         <button type="submit" class="tp-ab-btn tp-ab-btn--outline">Apply</button>
         @if(array_filter($filters))
-        <a href="{{ route('admin.integrations.wetu.itineraries') }}" class="tp-ab-btn tp-ab-btn--ghost"
+        <a href="{{ $nav->wetuItineraries() }}" class="tp-ab-btn tp-ab-btn--ghost"
            style="text-decoration:none">Clear</a>
         @endif
     </form>
@@ -290,7 +290,7 @@
                                     <i class="ion ion-ios-open"></i>
                                 </a>
                                 @if($id)
-                                <form method="POST" action="{{ route('admin.integrations.wetu.import', $id) }}"
+                                <form method="POST" action="{{ $nav->wetuImport($id) }}"
                                       class="d-inline">
                                     @csrf
                                     <button type="submit" class="icon-btn icon-btn--import"
@@ -324,7 +324,7 @@
                     <em>Move to Bookings</em> in Tanova. Agents see them in their itinerary builder.
                 @else
                     Add your Wetu Connect API key to enable pushing confirmed bookings back to Wetu.
-                    <a href="{{ route('admin.integrations.category', 'exp_os') }}" style="font-weight:600">Configure in Exp OS →</a>
+                    <a href="{{ $nav->category('exp_os') }}" style="font-weight:600">Configure in Exp OS →</a>
                 @endif
             </div>
         </div>

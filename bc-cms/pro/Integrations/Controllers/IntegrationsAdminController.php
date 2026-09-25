@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Auth;
 use Pro\Integrations\Models\Integration;
 use Pro\Integrations\Models\IntegrationRoomChannel;
 use Pro\Integrations\Services\IntegrationRegistry;
+use Pro\Integrations\Services\IntegrationsNav;
 use Pro\Integrations\Services\Wetu\WetuService;
 use Pro\Tanova\Models\TanovaTrip;
 
@@ -17,6 +18,7 @@ class IntegrationsAdminController extends Controller
     /** Main hub — all OS categories as cards */
     public function hub()
     {
+        $nav          = IntegrationsNav::current();
         $all          = IntegrationRegistry::all();
         $integrations = Integration::forVendor()->pluck('status', 'slug');
 
@@ -39,16 +41,18 @@ class IntegrationsAdminController extends Controller
                 ->count();
         }
 
-        return view('Integrations::admin.hub', compact('categories', 'all', 'integrations', 'counts'));
+        return view('Integrations::admin.hub', compact('categories', 'all', 'integrations', 'counts', 'nav'));
     }
 
     /** Category page — shows all integrations in that OS */
     public function category(string $cat)
     {
+        $nav   = IntegrationsNav::current();
         $items = IntegrationRegistry::category($cat);
         $slugs = array_column($items, 'slug');
 
         $saved        = $slugs ? Integration::forVendor()->whereIn('slug', $slugs)->get()->keyBy('slug') : collect();
+
         $rentals      = $this->getRentals();
         $roomChannels = $slugs ? IntegrationRoomChannel::whereIn('integration_slug', $slugs)->get()
             ->groupBy('integration_slug') : collect();
@@ -65,7 +69,7 @@ class IntegrationsAdminController extends Controller
         ][$cat] ?? ['label' => ucfirst($cat), 'icon' => 'ion ion-ios-apps', 'color' => '#333'];
 
         return view('Integrations::admin.category', compact(
-            'cat', 'items', 'saved', 'rentals', 'roomChannels', 'catMeta'
+            'cat', 'items', 'saved', 'rentals', 'roomChannels', 'catMeta', 'nav'
         ));
     }
 
@@ -216,7 +220,7 @@ class IntegrationsAdminController extends Controller
     {
         $svc = WetuService::fromIntegration();
         if (!$svc) {
-            return redirect()->route('admin.integrations.category', 'exp_os')
+            return redirect(IntegrationsNav::current()->category('exp_os'))
                 ->withErrors(['wetu' => 'Connect Wetu first.']);
         }
 
@@ -224,6 +228,7 @@ class IntegrationsAdminController extends Controller
         $data    = $svc->listItineraries($filters);
 
         return view('Integrations::admin.wetu.itineraries', [
+            'nav'           => IntegrationsNav::current(),
             'itineraries'   => $data['itineraries'],
             'total'         => $data['total'],
             'filters'       => $filters,
