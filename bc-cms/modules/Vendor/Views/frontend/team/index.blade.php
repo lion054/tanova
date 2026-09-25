@@ -1,5 +1,12 @@
 @extends('layouts.user')
 @section('content')
+<style>
+.tp-team-btn { display:inline-block; padding:7px 13px; border-radius:7px; font-size:12px; font-weight:600; border:1.5px solid #e4e4e4; background:#fff; color:#333 !important; text-decoration:none !important; cursor:pointer; margin-right:4px; white-space:nowrap; }
+.tp-team-btn:hover { border-color:#0a0a0a; color:#0a0a0a !important; }
+.tp-team-btn--primary { background:#0a0a0a; border-color:#0a0a0a; color:#fff !important; padding:10px 18px; font-size:13px; }
+.tp-team-btn--primary:hover { background:#222; color:#fff !important; }
+.tp-team-btn--danger { color:#e11d48 !important; border-color:#fecdd3; background:#fff1f2; }
+</style>
 <div class="container-fluid">
     <h2 class="title-bar">{{ __('Team members') }}</h2>
     @include('admin.message')
@@ -18,7 +25,7 @@
                 <small class="text-muted">{{ __('The company dashboard and Today are always included.') }}</small>
             </div>
         </div>
-        <button class="btn btn-success mt-2"><i class="fa fa-plus"></i> {{ __('Add and send invitation') }}</button>
+        <button type="submit" class="tp-team-btn tp-team-btn--primary" style="margin-top:12px;">+ {{ __('Add and send invitation') }}</button>
     </form>
     <hr>
     <h4>{{ __('People on your team') }}</h4>
@@ -33,9 +40,9 @@
                     <td>{{ collect($t->permissions)->map(fn ($k) => __($modules[$k] ?? $k))->implode(', ') }}</td>
                     <td><span class="badge badge-{{ $t->status_badge }}">{{ $t->status_text }}</span></td>
                     <td class="text-nowrap">
-                        <a class="btn btn-sm btn-outline-secondary" href="{{ route('vendor.team.edit', $t->id) }}">{{ __('Change access') }}</a>
-                        @if($t->status !== Modules\Vendor\Models\VendorTeam::STATUS_PUBLISH)<a class="btn btn-sm btn-outline-secondary" href="{{ route('vendor.team.re-send-request', $t->id) }}">{{ __('Send invitation again') }}</a>@endif
-                        <a class="btn btn-sm btn-outline-danger" href="{{ URL::signedRoute('vendor.team.delete', ['vendorTeam' => $t->id]) }}" onclick="return confirm('{{ __('Remove this person from your team?') }}')">{{ __('Remove') }}</a>
+                        <a class="tp-team-btn" href="{{ route('vendor.team.edit', $t->id) }}">{{ __('Change access') }}</a>
+                        @if($t->status !== Modules\Vendor\Models\VendorTeam::STATUS_PUBLISH)<a class="tp-team-btn" href="{{ route('vendor.team.re-send-request', $t->id) }}">{{ __('Send invitation again') }}</a>@endif
+                        <a class="tp-team-btn tp-team-btn--danger" href="{{ URL::signedRoute('vendor.team.delete', ['vendorTeam' => $t->id]) }}" onclick="return confirm('{{ __('Remove this person from your team?') }}')">{{ __('Remove') }}</a>
                     </td>
                 </tr>
             @empty

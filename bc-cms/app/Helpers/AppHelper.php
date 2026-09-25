@@ -1107,8 +1107,8 @@ function is_enable_registration()
 }
 function is_enable_vendor_team()
 {
-    return false;
-    return setting_item('vendor_team_enable');
+    // On unless the platform turns it off: adding employees as staff is part of the product (Vendor > Team).
+    return (bool) setting_item('vendor_team_enable', 1);
 }
 
 function is_enable_plan()

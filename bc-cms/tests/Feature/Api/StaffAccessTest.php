@@ -217,4 +217,15 @@ class StaffAccessTest extends ApiTestCase
         $this->assertNull($u->fresh()->vendor_id);
         $this->assertSame(0, VendorTeam::where('member_id', $u->id)->count());
     }
+
+    public function test_the_owner_finds_team_in_the_sidebar_and_staff_do_not(): void
+    {
+        $html = $this->actingAs($this->vendor)->get('/user/dashboard')->assertOk()->getContent();
+        $this->assertStringContainsString('href="' . url('/vendor/team') . '"', $html, 'the owner has a Team entry');
+        $this->assertStringContainsString('Team (staff)', $html);
+        $this->actingAs($this->vendor)->get('/vendor/team')->assertOk()->assertSee('Add and send invitation')->assertSee('What they can open');
+
+        $member = $this->staff(['bookings', 'finance']);
+        $this->assertStringNotContainsString('/vendor/team', $this->actingAs($member)->get('/user/dashboard')->getContent(), 'staff never see it');
+    }
 }

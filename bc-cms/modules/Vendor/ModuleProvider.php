@@ -235,7 +235,7 @@ class ModuleProvider extends ModuleServiceProvider
 
             $res['team']= [
                 'url'        => route('vendor.team.index'),
-                'title'      => __("Teams"),
+                'title'      => __("Team (staff)"),
                 'icon'       => 'icon ion-ios-contacts',
                 'position'   => 100,
                 'permission' => 'dashboard_vendor_access',

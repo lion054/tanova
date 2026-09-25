@@ -21,7 +21,7 @@ return [
     'sections' => [
         'overview' => [
             'label' => 'Overview',
-            'keys'  => ['dashboard', 'today'],
+            'keys'  => ['dashboard', 'today', 'team'],   // Team (staff) stays in view at the top: adding employees is a first step, not a setting
         ],
         'bookings' => [
             'label' => 'Bookings',
@@ -58,7 +58,7 @@ return [
         ],
         'settings' => [
             'label' => 'Settings',
-            'keys'  => ['go_live', 'subscription', 'api_keys', 'api_docs', 'team', 'integrations', 'operators', 'ai_plan', 'verification', '2fa', 'help'],
+            'keys'  => ['go_live', 'subscription', 'api_keys', 'api_docs', 'integrations', 'operators', 'ai_plan', 'verification', '2fa', 'help'],
         ],
     ],
 
