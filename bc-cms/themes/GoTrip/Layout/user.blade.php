@@ -715,6 +715,7 @@
             <div class="dashboard__main">
                 <div class="dashboard__content bg-light-2">
                     @include('components.area-notice')
+                    @include('components.plan-status')
                     @yield('content')
                     @include('Layout::parts.user.footer')
                 </div>

@@ -67,3 +67,6 @@ Schedule::command(\Modules\TourPay\Commands\MoneyReconcileCommand::class)->daily
 
 // Daily exchange rates for the few conversions the books need (free feed; the last known rates stay in use if it is down).
 Schedule::command(\Modules\TourPay\Commands\FxRefreshCommand::class)->dailyAt('04:10');
+
+// Subscriptions that have run out are marked expired, and each business's plan fields are kept in step with its subscription.
+Schedule::command(\Modules\Vendor\Commands\SyncSubscriptions::class)->dailyAt('03:45')->withoutOverlapping();

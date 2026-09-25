@@ -125,6 +125,18 @@ class IntegrationsAdminController extends Controller
         if ($slug === 'wetu') {
             $svc = WetuService::fromIntegration();
             $ok  = $svc && $svc->ping();
+        } elseif ($slug === 'whatsapp_cloud') {
+            // A real check: ask WhatsApp about the number these credentials belong to.
+            $ok = false;
+            if ($integration->isConnected() && $integration->credential('phone_number_id') && $integration->credential('access_token')) {
+                try {
+                    $r = \Illuminate\Support\Facades\Http::withToken((string) $integration->credential('access_token'))->timeout(10)
+                        ->get('https://graph.facebook.com/' . config('services.whatsapp.graph_version', 'v21.0') . '/' . $integration->credential('phone_number_id'), ['fields' => 'display_phone_number,verified_name']);
+                    $ok = $r->successful();
+                } catch (\Throwable $e) {
+                    $ok = false;
+                }
+            }
         } else {
             // Generic: just confirm credentials are stored
             $ok = $integration->isConnected() && !empty($integration->credentials);

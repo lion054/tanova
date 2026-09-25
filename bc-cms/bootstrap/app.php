@@ -28,6 +28,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->web([
             \App\Http\Middleware\FrontendGuard::class,
             \App\Http\Middleware\AreaGuard::class,
+            \App\Http\Middleware\EnforcePlanOnCreate::class,
             \App\Http\Middleware\RedirectForMultiLanguage::class,
             \App\Http\Middleware\SetLanguageForAdmin::class,
             \App\Http\Middleware\SetCurrentCurrency::class,

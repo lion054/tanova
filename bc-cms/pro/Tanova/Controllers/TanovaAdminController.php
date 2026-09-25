@@ -23,19 +23,38 @@ class TanovaAdminController extends Controller
         $this->engine = $engine;
     }
 
-    /** Dashboard: trips from the last 24 h (configurable) */
+    /** How long a new trip stays on the dashboard (the same setting the clean-up job uses). */
+    private function windowHours(): int
+    {
+        return max(1, (int) (setting_item('tanova_window_hours') ?: 24));
+    }
+
+    private function staffWantsAll(Request $request): bool
+    {
+        return $request->boolean('all') && (bool) auth()->user()?->hasPermission('dashboard_access');
+    }
+
+    /**
+     * The trip, if this person may work with it: it belongs to their business (or they made it), or they are platform staff.
+     * Anything else is "not found", so the existence of another business's trip is never confirmed.
+     */
+    private function trip($idOrTrip): TanovaTrip
+    {
+        $trip = $idOrTrip instanceof TanovaTrip ? $idOrTrip : TanovaTrip::withoutVendorScope()->findOrFail($idOrTrip);
+        $mine = (int) $trip->vendor_id === (int) resolve_current_vendor_id() || ($trip->user_id !== null && (int) $trip->user_id === (int) auth()->id());
+        abort_unless($mine || auth()->user()?->hasPermission('dashboard_access'), 404);
+
+        return $trip;
+    }
+
+    /** Dashboard: recent trips (window set by tanova_window_hours, 24 h by default) */
     public function index(Request $request)
     {
-        $hours = 24;
-        $vendorId = auth()->user()?->vendor_id ?? 0;
-        $query = TanovaTrip::recent($hours);
-
-        $query->where(function($q) use ($vendorId) {
-            $q->where('user_id', auth()->id());
-            if ($vendorId) {
-                $q->orWhere('vendor_id', $vendorId);
-            }
-        })->latest();
+        $hours = $this->windowHours();
+        // A business sees every trip that belongs to it (the ones it made and the ones the marketplace made for it): the tenant scope does that.
+        // Staff can look across every business with ?all=1.
+        $query = $this->staffWantsAll($request) ? TanovaTrip::withoutVendorScope()->recent($hours) : TanovaTrip::recent($hours);
+        $query->latest();
 
         if ($status = $request->get('status')) {
             $query->where('status', $status);
@@ -51,10 +70,9 @@ class TanovaAdminController extends Controller
     }
 
     /** Detail / manage a single trip */
-    public function show(TanovaTrip $trip)
+    public function show($trip)
     {
-        $vendorId = auth()->user()?->vendor_id ?? 0;
-        abort_if($trip->user_id !== auth()->id() && $trip->vendor_id !== $vendorId, 403);
+        $trip = $this->trip($trip);
         return view('Tanova::admin.detail', compact('trip'));
     }
 
@@ -73,7 +91,7 @@ class TanovaAdminController extends Controller
             'stay_type'   => 'nullable|in:room,apartment',
         ]);
 
-        $vendorId = auth()->user()?->vendor_id ?? null;
+        $vendorId = resolve_current_vendor_id();
         $validated['vendor_id'] = $vendorId;
 
         $result = $this->engine->generate($validated);
@@ -122,10 +140,9 @@ class TanovaAdminController extends Controller
      * Move a created Tanova trip into the local GoTrip Bookings module.
      * Accepts optional `package` (1-indexed) to pick which package's price to use.
      */
-    public function moveToBookings(TanovaTrip $trip, Request $request)
+    public function moveToBookings($trip, Request $request)
     {
-        $vendorId = auth()->user()?->vendor_id ?? 0;
-        abort_if($trip->user_id !== auth()->id() && $trip->vendor_id !== $vendorId, 403);
+        $trip = $this->trip($trip);
         if (!$trip->isMovable()) {
             return back()->withErrors(['move' => 'Only trips with status "created" can be moved to bookings.']);
         }
@@ -152,7 +169,7 @@ class TanovaAdminController extends Controller
         $booking = new Booking();
         $booking->object_model    = 'tanova_trip';
         $booking->object_id       = $trip->id;
-        $booking->vendor_id       = $trip->user_id ?? Auth::id();
+        $booking->vendor_id       = $trip->vendor_id ?? $trip->user_id ?? Auth::id();
         $booking->start_date      = $trip->start_date;
         $booking->end_date        = $trip->end_date;
         $booking->total           = $total;
@@ -176,20 +193,20 @@ class TanovaAdminController extends Controller
     }
 
     /** Search bc_tours + bc_tanova_restaurants for the trip's location — tsoka_portal only */
-    public function searchActivities(TanovaTrip $trip, Request $request)
+    public function searchActivities($trip, Request $request)
     {
-        $vendorId = auth()->user()?->vendor_id ?? 0;
-        abort_if($trip->user_id !== auth()->id() && $trip->vendor_id !== $vendorId, 403);
+        $trip = $this->trip($trip);
 
         $prompt     = json_decode($trip->prompt ?? '{}', true);
         $locationId = $prompt['location_id'] ?? null;
         $q          = trim($request->get('q', ''));
         $showAll    = (bool) $request->get('show_all', false); // Allow viewing other vendors' services
+        $ownerId    = (int) ($trip->vendor_id ?: resolve_current_vendor_id());   // tours belong to a business through author_id
 
         $tours = Tour::where('status', 'publish')
             ->when($locationId, fn($qb) => $qb->where('location_id', $locationId))
             ->when($q,          fn($qb) => $qb->where('title', 'like', "%{$q}%"))
-            ->when(!$showAll && $vendorId, fn($qb) => $qb->where('vendor_id', $vendorId))
+            ->when(!$showAll && $ownerId, fn($qb) => $qb->where('author_id', $ownerId))
             ->select('id', 'title', 'price', 'short_desc', 'time_slot', 'duration', 'activity_type', 'vendor_id')
             ->orderBy('title')
             ->limit(20)
@@ -204,7 +221,7 @@ class TanovaAdminController extends Controller
                 'duration'    => (float) ($t->duration ?? 1),
                 'included'    => false,
                 'image'       => null,
-                'vendor_id'   => (int) ($t->vendor_id ?? 0),
+                'vendor_id'   => (int) ($t->author_id ?? 0),
             ]);
 
         return response()->json([
@@ -214,10 +231,9 @@ class TanovaAdminController extends Controller
     }
 
     /** Save a modified package itinerary back to the trip — recalculates costs server-side */
-    public function savePackage(TanovaTrip $trip, Request $request, int $pkg)
+    public function savePackage($trip, Request $request, int $pkg)
     {
-        $vendorId = auth()->user()?->vendor_id ?? 0;
-        abort_if($trip->user_id !== auth()->id() && $trip->vendor_id !== $vendorId, 403);
+        $trip = $this->trip($trip);
         abort_if(!$trip->isMovable(), 403, 'Trip is already booked and cannot be edited.');
 
         $validated = $request->validate([
@@ -278,10 +294,9 @@ class TanovaAdminController extends Controller
     }
 
     /** Create a TourPay invoice pre-filled from a Tanova trip itinerary */
-    public function createInvoice(TanovaTrip $trip, Request $request)
+    public function createInvoice($trip, Request $request)
     {
-        $vendorId = auth()->user()?->vendor_id ?? 0;
-        abort_if($trip->user_id !== auth()->id() && $trip->vendor_id !== $vendorId, 403);
+        $trip = $this->trip($trip);
         $packages = $trip->itinerary ?? [];
 
         // Use package submitted from the UI; fall back to previously saved booked_package
@@ -300,9 +315,11 @@ class TanovaAdminController extends Controller
         $invoice = new Invoice();
         $invoice->type           = 'invoice';
         $invoice->status         = 'draft';
-        $invoice->author_id      = Auth::id();
+        $owner = (int) ($trip->vendor_id ?: Auth::id());
+        $invoice->vendor_id      = $owner;
+        $invoice->author_id      = $owner;
         $invoice->create_user    = Auth::id();
-        $invoice->invoice_number = Invoice::generateNumber(Auth::id());
+        $invoice->invoice_number = Invoice::generateNumber($owner);
         $invoice->pay_token      = Str::uuid()->toString();
         $invoice->tanova_trip_id = $trip->id;
         $invoice->client_name    = $trip->guest_name  ?? '';
@@ -386,9 +403,8 @@ class TanovaAdminController extends Controller
     /** Delete trips older than the window that are still in 'created' status */
     public function expireOld()
     {
-        $hours   = 24;
+        $hours   = $this->windowHours();
         $deleted = TanovaTrip::pending()
-            ->where('user_id', auth()->id())
             ->where('created_at', '<', now()->subHours($hours))
             ->delete();
 
@@ -396,10 +412,9 @@ class TanovaAdminController extends Controller
     }
 
     /** Check weather and get Claude's replan suggestions */
-    public function getReplanSuggestions(TanovaTrip $trip)
+    public function getReplanSuggestions($trip)
     {
-        $vendorId = auth()->user()?->vendor_id ?? 0;
-        abort_if($trip->user_id !== auth()->id() && $trip->vendor_id !== $vendorId, 403);
+        $trip = $this->trip($trip);
 
         $replanService = new ReplanService();
         $suggestions = $replanService->getSuggestions($trip);

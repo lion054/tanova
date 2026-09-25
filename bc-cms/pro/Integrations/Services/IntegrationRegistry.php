@@ -4,7 +4,33 @@ namespace Pro\Integrations\Services;
 
 class IntegrationRegistry
 {
+    /** Integrations the portal really uses today. The others save their credentials safely but nothing reads them yet, and their cards say so. */
+    public const LIVE = ['wetu', 'fiscalize', 'whatsapp_cloud'];
+
+    /** Where a category's real setup lives when it is not this page (invoice payments are set up in TourPay, not here). */
+    private const POINTERS = [
+        'payment' => ['text' => 'Invoice payments are set up in Finance › TourPay › Settings › Getting paid, with your own Stripe, PayPal, Paystack, Paynow, Pesapal or Selcom keys.', 'route' => 'tourpay.vendor.settings.page'],
+    ];
+
     public static function all(): array
+    {
+        $out = [];
+        foreach (self::raw() as $cat => $items) {
+            $out[$cat] = array_map(function ($i) use ($cat) {
+                $i['live'] = in_array($i['slug'], self::LIVE, true);
+                if (! $i['live'] && isset(self::POINTERS[$cat])) {
+                    $i['pointer'] = self::POINTERS[$cat];
+                }
+
+                return $i;
+            }, $items);
+        }
+
+        return $out;
+    }
+
+    /** @return array<string,array> */
+    private static function raw(): array
     {
         return [
             'stay_os'       => static::stayOs(),

@@ -40,6 +40,9 @@
                 @if($required)
                     <span class="int-tag int-tag--warn">Required</span>
                 @endif
+                @if(isset($item['live']) && !$item['live'])
+                    <span class="int-tag" style="background:#f4f4f5;color:#71717a;border:1px solid #e4e4e7;" title="The portal does not use these credentials yet">Saved only</span>
+                @endif
             </div>
             @if($saved?->last_verified_at && $connected)
                 <div class="int-card__verified">Verified {{ $saved->last_verified_at->diffForHumans() }}</div>
@@ -67,6 +70,13 @@
     {{-- Body --}}
     <div class="int-card__body">
         <p class="int-card__desc">{{ $item['description'] }}</p>
+        @if(!empty($item['pointer']))
+        <p class="int-card__desc" style="font-size:12px;">{{ $item['pointer']['text'] }}
+            @if(Route::has($item['pointer']['route']) && $nav->isUser())<a href="{{ route($item['pointer']['route']) }}" style="font-weight:700;">Open TourPay settings &rarr;</a>@endif
+        </p>
+        @elseif(isset($item['live']) && !$item['live'])
+        <p class="int-card__desc" style="font-size:12px;color:#aaa;">{{ __('Your credentials are stored securely, but the portal does not use them yet.') }}</p>
+        @endif
 
         @if($saved?->last_error)
         <div class="int-card__error">

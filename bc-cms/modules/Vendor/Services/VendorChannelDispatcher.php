@@ -10,8 +10,7 @@ use Illuminate\Support\Facades\Mail;
 
 /**
  * Phase 3 — sends a message on a vendor's own channel using the credentials the
- * vendor configured in the Integrations module (stored, encrypted, on their user
- * record). Each call is scoped to one vendor; no shared sender is ever used.
+ * vendor configured in the Integrations module (stored, encrypted, per business). Each call is scoped to one vendor; no shared sender is ever used.
  *
  * Returns ['status' => sent|failed|skipped, 'error' => ?string, 'to' => ?string].
  * "skipped" means the vendor hasn't connected that channel, or we have no usable
@@ -52,18 +51,22 @@ class VendorChannelDispatcher
         return ['status' => 'sent', 'error' => null, 'to' => $to];
     }
 
+    /**
+     * WhatsApp goes out through the business's own WhatsApp Cloud connection: the credentials saved on the Integrations page
+     * (slug whatsapp_cloud, encrypted, per business). Nothing shared is ever used.
+     */
     private function whatsapp(User $vendor, ?string $phone, string $body): array
     {
-        if (empty($vendor->whatsapp_enabled) || empty($vendor->whatsapp_access_token) || empty($vendor->whatsapp_phone_number_id)) {
+        [$phoneNumberId, $token] = $this->whatsappCredentials($vendor);
+        if (! $phoneNumberId || ! $token) {
             return ['status' => 'skipped', 'error' => 'whatsapp_not_connected', 'to' => $phone];
         }
         if (! $phone) {
             return ['status' => 'skipped', 'error' => 'no_phone', 'to' => null];
         }
 
-        $token = Crypt::decryptString($vendor->whatsapp_access_token);
-        $resp = Http::withToken($token)->post(
-            "https://graph.facebook.com/v18.0/{$vendor->whatsapp_phone_number_id}/messages",
+        $resp = Http::withToken($token)->timeout(15)->post(
+            'https://graph.facebook.com/' . config('services.whatsapp.graph_version', 'v21.0') . "/{$phoneNumberId}/messages",
             [
                 'messaging_product' => 'whatsapp',
                 'to'                => preg_replace('/[^0-9]/', '', $phone),
@@ -75,6 +78,20 @@ class VendorChannelDispatcher
         return $resp->successful()
             ? ['status' => 'sent', 'error' => null, 'to' => $phone]
             : ['status' => 'failed', 'error' => 'whatsapp_http_' . $resp->status(), 'to' => $phone];
+    }
+
+    /** @return array{0:?string,1:?string} phone number id and access token, from the Integrations page (falling back to the older fields on the user record) */
+    private function whatsappCredentials(User $vendor): array
+    {
+        $i = \Pro\Integrations\Models\Integration::where('slug', 'whatsapp_cloud')->where('author_id', $vendor->id)->where('status', 'connected')->first();
+        if ($i && $i->credential('phone_number_id') && $i->credential('access_token')) {
+            return [(string) $i->credential('phone_number_id'), (string) $i->credential('access_token')];
+        }
+        if (! empty($vendor->whatsapp_enabled) && ! empty($vendor->whatsapp_access_token) && ! empty($vendor->whatsapp_phone_number_id)) {
+            return [(string) $vendor->whatsapp_phone_number_id, Crypt::decryptString($vendor->whatsapp_access_token)];
+        }
+
+        return [null, null];
     }
 
     private function telegram(User $vendor, ?string $chatId, string $body): array

@@ -17,6 +17,7 @@ class ModuleProvider extends ModuleServiceProvider
                 \Modules\Vendor\Commands\DispatchScheduledMessages::class,
                 \Modules\Vendor\Commands\RetryWebhooks::class,
                 \App\Console\Commands\TenantExport::class,
+                \Modules\Vendor\Commands\SyncSubscriptions::class,
             ]);
         }
     }

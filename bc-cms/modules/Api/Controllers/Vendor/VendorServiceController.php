@@ -24,64 +24,9 @@ class VendorServiceController extends Controller
      */
     private function checkPlanLimit(string $type): ?JsonResponse
     {
-        $vendor = VendorContext::get();
+        $breach = \Modules\Vendor\Services\PlanLimits::check(VendorContext::get(), $type);
 
-        if (!$vendor) {
-            return response()->json(['error' => ['code' => 'unauthenticated', 'message' => 'No vendor context.']], 401);
-        }
-
-        // If global plan enforcement is disabled, skip
-        if (!is_enable_plan()) {
-            return null;
-        }
-
-        // vendor_plan_enable accounts for grace period
-        if (!$vendor->vendor_plan_enable) {
-            return response()->json([
-                'error' => [
-                    'code'    => 'subscription_required',
-                    'message' => 'An active subscription is required to create listings.',
-                ],
-            ], 402);
-        }
-
-        $planData = $vendor->vendorPlanData;
-
-        // No plan meta at all → no restrictions
-        if (empty($planData) || !isset($planData[$type])) {
-            return null;
-        }
-
-        $meta = $planData[$type];
-
-        // Service type not enabled on this plan
-        if (empty($meta['enable'])) {
-            return response()->json([
-                'error' => [
-                    'code'    => 'plan_service_disabled',
-                    'message' => "Your plan does not include {$type} listings.",
-                ],
-            ], 403);
-        }
-
-        // Check maximum_create limit
-        $max = $meta['maximum_create'] ?? 0;
-        if ($max > 0) {
-            $current = Service::where('author_id', $vendor->id)
-                ->where('object_model', $type)
-                ->count();
-
-            if ($current >= $max) {
-                return response()->json([
-                    'error' => [
-                        'code'    => 'plan_limit_reached',
-                        'message' => "Your plan allows a maximum of {$max} {$type} listings. Upgrade your plan to add more.",
-                    ],
-                ], 403);
-            }
-        }
-
-        return null;
+        return $breach ? response()->json(['error' => ['code' => $breach['code'], 'message' => $breach['message']]], $breach['status']) : null;
     }
 
     /**
