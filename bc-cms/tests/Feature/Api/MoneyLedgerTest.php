@@ -32,6 +32,16 @@ class MoneyLedgerTest extends ApiTestCase
         \Illuminate\Support\Facades\Event::fake([\Modules\Booking\Events\BookingUpdatedEvent::class]);   // no e-mails from these tests
     }
 
+    /** Serves the exchange-rate feed from memory (USD base) so the tests never touch the network. */
+    private function fakeRates(array $rates): void
+    {
+        $all = ['USD' => 1.0, 'EUR' => 0.9, 'GBP' => 0.8, 'KES' => 129.0, 'TZS' => 2600.0, 'UGX' => 3800.0] + $rates;
+        for ($i = 0; count($all) < 70; $i++) { $all['T' . str_pad((string) $i, 2, '0', STR_PAD_LEFT)] = 1.0 + $i; }
+        \Illuminate\Support\Facades\Http::fake(['open.er-api.com/*' => \Illuminate\Support\Facades\Http::response(['result' => 'success', 'rates' => $all])]);
+        DB::table('bc_fx_rates')->delete();
+        \Illuminate\Support\Facades\Cache::forget('fx.attempt');
+    }
+
     private function booking(float $total = 500, ?int $vendor = null, array $o = []): Booking
     {
         $id = DB::table('bc_bookings')->insertGetId($o + ['code' => strtoupper(substr(md5(uniqid('', true)), 0, 10)), 'vendor_id' => $vendor ?? $this->vendor->id, 'object_model' => 'tour', 'first_name' => 'Ann', 'last_name' => 'Ray',
@@ -154,13 +164,51 @@ class MoneyLedgerTest extends ApiTestCase
         $this->assertEquals(500, LedgerEntry::withoutVendorScope()->where('booking_id', $b->id)->sum('amount'));
     }
 
-    public function test_an_invoice_in_another_currency_is_not_mixed_into_the_booking(): void
+    public function test_an_invoice_in_another_currency_keeps_its_currency_and_credits_the_booking_at_the_days_rate(): void
     {
+        $this->fakeRates(['ZAR' => 18.0]);
         $b = $this->booking(500, null, ['currency' => 'USD']);
-        $inv = $this->invoice(500, $b, 'ZAR');
-        app(InvoiceBook::class)->recordPayment($inv, 100, 'bank', now()->toDateString(), null, null, 'manual', $this->vendor->id);
-        $this->assertEquals(0, Booking::find($b->id)->paid);
-        $this->assertNull(LedgerEntry::withoutVendorScope()->where('invoice_id', $inv->id)->first()->booking_id);
+        $inv = $this->invoice(1800, $b, 'ZAR');
+        app(InvoiceBook::class)->recordPayment($inv, 900, 'bank', now()->toDateString(), null, null, 'manual', $this->vendor->id);
+
+        $row = LedgerEntry::withoutVendorScope()->where('invoice_id', $inv->id)->firstOrFail();
+        $this->assertSame('ZAR', $row->currency);
+        $this->assertEquals(900, $row->amount, 'the payment and its invoice keep their own currency');
+        $this->assertEquals(50, $row->booking_amount, '900 ZAR at 18 is 50 USD on the booking');
+        $this->assertSame('api', $row->fx_source);
+        $this->assertEquals(50, Booking::find($b->id)->paid);
+        $this->assertEquals(900, $inv->fresh()->amount_paid, 'the invoice is not converted');
+        $this->assertSame([], app(MoneyReconcile::class)->run()['problems']);
+    }
+
+    public function test_the_businesss_own_rate_beats_the_feed_and_a_missing_rate_links_nothing(): void
+    {
+        $this->fakeRates(['ZAR' => 18.0]);
+        DB::table('bc_tourpay_settings')->updateOrInsert(['vendor_id' => $this->vendor->id], ['base_currency' => 'USD', 'rates' => json_encode(['ZAR' => 0.05]), 'created_at' => now(), 'updated_at' => now()]);   // 1 ZAR = 0.05 USD: 20 per USD
+        $b = $this->booking(500, null, ['currency' => 'USD']);
+        $inv = $this->invoice(1800, $b, 'ZAR');
+        app(InvoiceBook::class)->recordPayment($inv, 1000, 'bank', now()->toDateString(), null, null, 'manual', $this->vendor->id);
+        $row = LedgerEntry::withoutVendorScope()->where('invoice_id', $inv->id)->firstOrFail();
+        $this->assertEquals(50, $row->booking_amount);
+        $this->assertSame('vendor', $row->fx_source);
+
+        // A currency nobody has a rate for is never guessed: the payment stands, it just is not linked to the booking.
+        $b2 = $this->booking(500, null, ['currency' => 'USD']);
+        $inv2 = $this->invoice(100, $b2, 'XTS');
+        app(InvoiceBook::class)->recordPayment($inv2, 40, 'bank', now()->toDateString(), null, null, 'manual', $this->vendor->id);
+        $this->assertNull(LedgerEntry::withoutVendorScope()->where('invoice_id', $inv2->id)->first()->booking_id);
+        $this->assertEquals(0, Booking::find($b2->id)->paid);
+        $this->assertEquals(40, $inv2->fresh()->amount_paid);
+    }
+
+    public function test_money_recorded_on_a_booking_in_one_currency_is_allocated_to_its_invoice_in_the_other(): void
+    {
+        $this->fakeRates(['ZAR' => 18.0]);
+        $b = $this->booking(500, null, ['currency' => 'USD']);
+        $inv = $this->invoice(9000, $b, 'ZAR');
+        app(BookingPayments::class)->recordPayment($b, 100, 'cash', null, null, null, $this->vendor->id);
+        $this->assertEquals(1800, $inv->fresh()->amount_paid, '100 USD paid on the booking is 1,800 ZAR on the invoice');
+        $this->assertEquals(100, Booking::find($b->id)->paid);
     }
 
     public function test_money_recorded_on_the_booking_cannot_be_removed_from_its_invoice(): void
@@ -226,11 +274,12 @@ class MoneyLedgerTest extends ApiTestCase
         $direct = $this->booking(100, null, ['status' => 'completed', 'commission' => 10, 'vendor_service_fee_amount' => 0, 'total_before_fees' => 100]);
         app(BookingPayments::class)->recordPayment($direct, 100, 'bank', null, null, null, $this->vendor->id);
 
-        $this->assertEquals(90, $this->vendor->fresh()->available_payout_amount, 'held 100, vendor share 90; the direct payment is not counted');
+        // held 100, vendor share 90; the 100 the guest paid the business directly is not the platform's to pay out, and its 10 commission is held back.
+        $this->assertEquals(80, $this->vendor->fresh()->available_payout_amount);
 
         $po = new VendorPayout();
         $po->vendor_id = $this->vendor->id; $po->amount = 40; $po->status = 'initial'; $po->payout_method = 'bank'; $po->save();
-        $this->assertEquals(50, $this->vendor->fresh()->available_payout_amount, 'a requested payout is already spoken for');
+        $this->assertEquals(40, $this->vendor->fresh()->available_payout_amount, 'a requested payout is already spoken for');
 
         $po->status = 'paid'; $po->pay_date = now()->toDateString(); $po->save();
         $row = LedgerEntry::withoutVendorScope()->where('entry_key', 'payout:' . $po->id)->firstOrFail();
@@ -383,5 +432,99 @@ class MoneyLedgerTest extends ApiTestCase
         $this->assertEquals(200, $r['opening']['USD']);
         $this->assertCount(1, $r['entries']);
         $this->assertEquals(300, $r['entries'][0]['balance']);
+    }
+
+    // ── One schedule ─────────────────────────────────────────────────────────
+
+    public function test_a_plan_built_on_the_booking_is_the_invoices_schedule_and_paid_rows_follow_the_ledger(): void
+    {
+        $b = $this->booking(1000, null, ['start_date' => now()->addDays(60)->toDateString() . ' 09:00:00']);
+        $inv = $this->invoice(1000, $b);
+        $pay = app(BookingPayments::class);
+        $pay->buildPlan($b, 'deposit', ['percent' => 30, 'balance_days' => 14]);
+
+        $rows = \Modules\TourPay\Models\Installment::where('invoice_id', $inv->id)->orderBy('sort_order')->get();
+        $this->assertCount(2, $rows, 'the invoice has the same two instalments');
+        $this->assertEquals([300, 700], $rows->pluck('amount')->map(fn ($v) => (float) $v)->all());
+        $this->assertSame(['Deposit (30%)', 'Balance'], $rows->pluck('label')->all());
+
+        // The deposit is paid on the INVOICE side: the booking's plan shows it paid too.
+        app(InvoiceBook::class)->recordPayment($inv->fresh(), 300, 'bank', now()->toDateString(), null, null, 'manual', $this->vendor->id);
+        $plan = \Modules\Vendor\Models\BookingPaymentPlan::where('booking_id', $b->id)->orderBy('sort_order')->get();
+        $this->assertSame(['paid', 'pending'], $plan->pluck('status')->all());
+
+        // A refund on the booking takes the deposit back to pending, on both.
+        $pay->recordRefund(Booking::find($b->id), 300, 'bank', null, null, $this->vendor->id);
+        $this->assertSame(['pending', 'pending'], \Modules\Vendor\Models\BookingPaymentPlan::where('booking_id', $b->id)->orderBy('sort_order')->pluck('status')->all());
+        $this->assertEquals(0, collect(app(InvoiceBook::class)->schedule($inv->fresh()))->sum('paid'));
+    }
+
+    public function test_a_schedule_set_on_the_invoice_becomes_the_bookings_plan_and_clearing_it_clears_both(): void
+    {
+        $b = $this->booking(600, null, ['start_date' => now()->addDays(60)->toDateString() . ' 09:00:00']);
+        $inv = $this->invoice(600, $b);
+        app(InvoiceBook::class)->setSchedule($inv->fresh(), 'split', null, 3);
+
+        $plan = \Modules\Vendor\Models\BookingPaymentPlan::where('booking_id', $b->id)->orderBy('sort_order')->get();
+        $this->assertCount(3, $plan);
+        $this->assertEquals(600, $plan->sum('amount'));
+
+        app(InvoiceBook::class)->setSchedule($inv->fresh(), 'none');
+        $this->assertSame(0, \Modules\Vendor\Models\BookingPaymentPlan::where('booking_id', $b->id)->count());
+    }
+
+    public function test_an_invoice_made_from_a_booking_takes_the_bookings_plan(): void
+    {
+        $b = $this->booking(400, null, ['start_date' => now()->addDays(60)->toDateString() . ' 09:00:00']);
+        app(BookingPayments::class)->buildPlan($b, 'split', ['parts' => 2]);
+        [$inv] = app(\Modules\TourPay\Services\InvoiceFromBooking::class)->make($b->fresh());
+        $this->assertCount(2, \Modules\TourPay\Models\Installment::where('invoice_id', $inv->id)->get());
+    }
+
+    // ── Backfill of NULLs, scale, and the database protection ────────────────
+
+    public function test_the_backfill_brings_a_null_paid_booking_up_to_the_ledger(): void
+    {
+        $b = $this->booking(300, null, ['paid' => null]);
+        $inv = $this->invoice(300, $b);
+        // An invoice payment that predates the ledger: a raw insert, and the booking's stored paid is NULL.
+        DB::table('bc_tourpay_payments')->insert(['vendor_id' => $this->vendor->id, 'invoice_id' => $inv->id, 'amount' => 120, 'method' => 'bank', 'paid_at' => now()->toDateString(), 'status' => 'confirmed', 'source' => 'manual', 'created_at' => now(), 'updated_at' => now()]);
+        $this->assertNull(DB::table('bc_bookings')->where('id', $b->id)->value('paid'));
+
+        $n = app(MoneyBackfill::class)->run();
+        $this->assertGreaterThanOrEqual(1, $n['booking_caches']);
+        $this->assertEquals(120, DB::table('bc_bookings')->where('id', $b->id)->value('paid'));
+    }
+
+    public function test_reconcile_stays_a_handful_of_queries_however_many_payments_there_are(): void
+    {
+        $inv = $this->invoice(1000000);
+        $rows = [];
+        for ($i = 1; $i <= 3000; $i++) {
+            $rows[] = ['vendor_id' => $this->vendor->id, 'invoice_id' => $inv->id, 'amount' => 1, 'method' => 'bank', 'paid_at' => now()->toDateString(), 'status' => 'confirmed', 'source' => 'manual', 'created_at' => now(), 'updated_at' => now()];
+        }
+        foreach (array_chunk($rows, 500) as $chunk) { DB::table('bc_tourpay_payments')->insert($chunk); }
+        $inv->recalculate();   // rows went in directly, so refresh the stored total the way the app would
+        app(MoneyBackfill::class)->run();
+
+        $count = 0;
+        DB::connection('mysql_api')->listen(function () use (&$count) { $count++; });
+        $t = microtime(true);
+        $res = app(MoneyReconcile::class)->run();
+        $this->assertSame([], $res['problems'], json_encode($res['samples']));
+        $this->assertLessThan(25, $count, "the check ran {$count} queries for 3,000 payments: it must be set-based");
+        $this->assertLessThan(10.0, microtime(true) - $t);
+    }
+
+    public function test_production_health_goes_red_when_the_database_is_not_protecting_the_ledger(): void
+    {
+        $this->assertFalse(app(MoneyReconcile::class)->protectedByDatabase(), 'the test database has no append-only triggers');
+        $this->assertArrayNotHasKey('ledger_protected', Health::run()['checks'], 'only production insists on them');
+
+        $this->app->detectEnvironment(fn () => 'production');
+        $h = Health::run();
+        $this->assertFalse($h['checks']['ledger_protected']['ok']);
+        $this->assertStringContainsString('triggers', $h['checks']['ledger_protected']['detail']);
+        $this->app->detectEnvironment(fn () => 'testing');
     }
 }

@@ -8,6 +8,7 @@ use InvalidArgumentException;
 use Modules\Booking\Models\Booking;
 use Modules\Vendor\Models\BookingLedger;
 use Modules\TourPay\Services\Ledger;
+use Modules\TourPay\Services\ScheduleSync;
 use Modules\Vendor\Models\BookingPaymentPlan;
 
 /**
@@ -45,6 +46,8 @@ class BookingPayments
         $owed = $this->balance($booking);
         BookingPaymentPlan::where('booking_id', $booking->id)->where('status', '!=', 'paid')->delete();
         if ($owed <= 0) {
+            app(ScheduleSync::class)->bookingToInvoice($booking);
+
             return [];
         }
 
@@ -67,6 +70,7 @@ class BookingPayments
         $made = [];
         foreach ($rows as [$label, $amount, $due]) {
             $made[] = BookingPaymentPlan::create([
+                'vendor_id'  => $booking->vendor_id,   // explicit: no logged-in business is needed (API, jobs)
                 'booking_id' => $booking->id,
                 'label'      => $label,
                 'amount'     => $amount,
@@ -75,6 +79,8 @@ class BookingPayments
                 'sort_order' => ++$sort,
             ]);
         }
+
+        app(ScheduleSync::class)->bookingToInvoice($booking);   // the booking's invoice, if it has one, is on the same schedule
 
         return $made;
     }

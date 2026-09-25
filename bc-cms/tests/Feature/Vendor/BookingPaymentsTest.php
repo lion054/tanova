@@ -112,6 +112,9 @@ class BookingPaymentsTest extends TestCase
             $t->string('note', 255)->nullable();
             $t->char('base_currency', 3)->nullable();
             $t->decimal('base_amount', 14, 2)->nullable();
+            $t->decimal('booking_amount', 14, 2)->nullable();
+            $t->decimal('fx_rate', 18, 8)->nullable();
+            $t->string('fx_source', 20)->nullable();
             $t->dateTime('occurred_at');
             $t->unsignedBigInteger('created_by')->nullable();
             $t->timestamp('created_at')->useCurrent();

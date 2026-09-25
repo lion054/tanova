@@ -16,6 +16,9 @@ class MoneyReconcileCommand extends Command
         if ($r['fixed']) {
             $this->info("Repaired {$r['fixed']} item(s).");
         }
+        if (!$r['protected'] && app()->environment('production')) {
+            $this->warn('The ledger is not protected by database triggers. Run: php artisan money:protect (needs log_bin_trust_function_creators=1 while binary logging is on).');
+        }
         if ($r['ok']) {
             $this->info('Everything agrees with the ledger.');
 

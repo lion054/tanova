@@ -43,21 +43,13 @@ return new class extends Migration {
         }
 
         // The database itself refuses to change or delete a row, so no code path, present or future, can rewrite history.
-        // Best effort: a server that does not allow triggers keeps the same rule in the model.
-        try {
-            DB::unprepared('DROP TRIGGER IF EXISTS bc_money_ledger_no_update');
-            DB::unprepared('DROP TRIGGER IF EXISTS bc_money_ledger_no_delete');
-            DB::unprepared("CREATE TRIGGER bc_money_ledger_no_update BEFORE UPDATE ON bc_money_ledger FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'The money ledger is append-only'");
-            DB::unprepared("CREATE TRIGGER bc_money_ledger_no_delete BEFORE DELETE ON bc_money_ledger FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'The money ledger is append-only'");
-        } catch (\Throwable $e) {
-            \Log::warning('Money ledger: could not create the append-only triggers (' . $e->getMessage() . '); the model guard still applies.');
-        }
+        // Best effort: a server that does not allow triggers keeps the same rule in the model, and `php artisan money:protect` installs them later.
+        \Modules\TourPay\Services\LedgerProtection::install();
     }
 
     public function down(): void
     {
-        DB::unprepared('DROP TRIGGER IF EXISTS bc_money_ledger_no_update');
-        DB::unprepared('DROP TRIGGER IF EXISTS bc_money_ledger_no_delete');
+        \Modules\TourPay\Services\LedgerProtection::remove();
         Schema::dropIfExists('bc_money_ledger');
     }
 };

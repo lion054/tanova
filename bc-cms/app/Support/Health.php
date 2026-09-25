@@ -47,6 +47,12 @@ class Health
             $checks['money'] = ['ok' => true, 'detail' => 'agrees with the ledger'];
         }
 
+        // In production the database itself must refuse to change the money ledger (needs log_bin_trust_function_creators=1 while binary logging is on).
+        if (app()->environment('production')) {
+            $prot = app(\Modules\TourPay\Services\MoneyReconcile::class)->protectedByDatabase();
+            $checks['ledger_protected'] = ['ok' => $prot, 'detail' => $prot ? 'append-only triggers in place' : 'append-only triggers missing: see docs (log_bin_trust_function_creators)'];
+        }
+
         return ['ok' => !in_array(false, array_column($checks, 'ok'), true), 'checks' => $checks];
     }
 }

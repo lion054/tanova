@@ -14,12 +14,13 @@ use Modules\TourPay\Models\LedgerEntry;
  */
 class AccountStatement
 {
-    public const KINDS = ['invoice' => 'Invoice payment', 'booking' => 'Booking payment', 'payout' => 'Paid out by platform', 'expense' => 'Expense'];
+    public const KINDS = ['invoice' => 'Invoice payment', 'booking' => 'Booking payment', 'payout' => 'Paid out by platform', 'expense' => 'Expense', 'commission' => 'Commission owed to platform'];
 
     /**
-     * @return array{entries:array,totals:array,opening:array,currencies:array,held:array}
+     * @return array{entries:array,totals:array,opening:array,currencies:array,held:array,owed:array}
      *   entries: [{date,kind,ref,who,method,note,cur,in,out,held,balance}] oldest first; balance runs per currency from the opening balance
      *   held: per currency, what the platform holds for the business and has not paid out yet
+     *   owed: per currency, commission the business owes the platform on money it collected itself (each currency on its own)
      */
     public function build(Carbon $from, Carbon $to, ?string $kind = null): array
     {
@@ -28,7 +29,7 @@ class AccountStatement
         // Everything before the period is added up by the database, not loaded: the opening cash and what the platform held then.
         $balance = []; $held = [];
         foreach (LedgerEntry::query()->where('occurred_at', '<', $start)->groupBy('currency')
-            ->selectRaw("currency, SUM(CASE WHEN held_by = 'vendor' THEN amount ELSE 0 END) AS cash, SUM(CASE WHEN held_by = 'platform' THEN amount WHEN kind = 'payout' THEN -amount ELSE 0 END) AS held")->get() as $r) {
+            ->selectRaw("currency, SUM(CASE WHEN held_by = 'vendor' AND kind <> 'commission' THEN amount ELSE 0 END) AS cash, SUM(CASE WHEN held_by = 'platform' THEN amount WHEN kind = 'payout' THEN -amount ELSE 0 END) AS held")->get() as $r) {
             $balance[$r->currency] = (float) $r->cash;
             $held[$r->currency] = (float) $r->held;
         }
@@ -40,15 +41,16 @@ class AccountStatement
         $entries = []; $totals = [];
         foreach ($rows as $r) {
             $cur = $r->currency; $amt = (float) $r->amount;
+            $isOwed = $r->kind === 'commission';   // owed to the platform, or settled: an account between the two, not cash in or out
             $isHeld = $r->heldByPlatform();
             $type = $this->typeOf($r);
-            if (!$isHeld) { $balance[$cur] = ($balance[$cur] ?? 0) + $amt; }
+            if (!$isHeld && !$isOwed) { $balance[$cur] = ($balance[$cur] ?? 0) + $amt; }
             // What the platform holds: what it collected, less what it has paid out.
             if ($isHeld) { $held[$cur] = ($held[$cur] ?? 0) + $amt; } elseif ($r->kind === 'payout') { $held[$cur] = ($held[$cur] ?? 0) - $amt; }
 
             $t = &$totals[$cur];
             $t ??= ['invoice' => 0.0, 'booking' => 0.0, 'payout' => 0.0, 'expense' => 0.0, 'net' => 0.0];
-            if (!$isHeld) {
+            if (!$isHeld && !$isOwed) {
                 $t[$type] += $type === 'expense' ? -$amt : $amt;   // expenses are shown as what was spent
                 $t['net'] += $amt;
             }
@@ -56,15 +58,16 @@ class AccountStatement
             if ($kind === null || $kind === $type) {
                 [$ref, $who] = $labels[$r->id];
                 $entries[] = ['date' => $r->occurred_at->copy(), 'kind' => $type, 'ref' => $ref, 'who' => $who, 'method' => (string) $r->method, 'note' => (string) ($r->isReversal() ? __('Reversal') : ($r->kind === 'refund' ? __('Refund') : '')),
-                    'cur' => $cur, 'in' => !$isHeld && $amt > 0 ? $amt : 0.0, 'out' => !$isHeld && $amt < 0 ? -$amt : 0.0, 'held' => $isHeld ? $amt : 0.0, 'balance' => round($balance[$cur] ?? 0, 2)];
+                    'cur' => $cur, 'in' => !$isHeld && !$isOwed && $amt > 0 ? $amt : 0.0, 'out' => !$isHeld && !$isOwed && $amt < 0 ? -$amt : 0.0, 'held' => $isHeld ? $amt : 0.0, 'owed' => $isOwed ? -$amt : 0.0, 'balance' => round($balance[$cur] ?? 0, 2)];
             }
         }
         foreach ($totals as &$t) { $t = array_map(fn ($v) => round($v, 2), $t); }
         unset($t);
-        $currencies = array_values(array_unique(array_merge(array_keys($opening), array_keys($totals), array_keys($balance), array_keys($held))));
+        $owed = app(Commission::class)->owed((int) resolve_current_vendor_id());
+        $currencies = array_values(array_unique(array_merge(array_keys($opening), array_keys($totals), array_keys($balance), array_keys($held), array_keys($owed))));
         sort($currencies);
 
-        return ['entries' => $entries, 'totals' => $totals, 'opening' => $opening, 'currencies' => $currencies, 'held' => array_map(fn ($v) => round($v, 2), array_filter($held, fn ($v) => abs($v) > 0.004))];
+        return ['entries' => $entries, 'totals' => $totals, 'opening' => $opening, 'currencies' => $currencies, 'held' => array_map(fn ($v) => round($v, 2), array_filter($held, fn ($v) => abs($v) > 0.004)), 'owed' => $owed];
     }
 
     private function typeOf(LedgerEntry $r): string
@@ -72,6 +75,7 @@ class AccountStatement
         return match (true) {
             $r->kind === 'expense' => 'expense',
             $r->kind === 'payout'  => 'payout',
+            $r->kind === 'commission' => 'commission',
             $r->invoice_id !== null => 'invoice',
             default                => 'booking',
         };

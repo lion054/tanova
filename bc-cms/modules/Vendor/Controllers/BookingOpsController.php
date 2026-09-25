@@ -168,6 +168,7 @@ class BookingOpsController extends Controller
     {
         $booking = $this->booking($bookingId);
         BookingPaymentPlan::where('booking_id', $booking->id)->where('status', '!=', 'paid')->delete();
+        app(\Modules\TourPay\Services\ScheduleSync::class)->bookingToInvoice($booking);
 
         return back();
     }
@@ -176,6 +177,7 @@ class BookingOpsController extends Controller
     {
         $booking = $this->booking($bookingId);
         BookingPaymentPlan::where('booking_id', $booking->id)->where('status', 'pending')->findOrFail($id)->update(['status' => 'waived']);
+        app(\Modules\TourPay\Services\ScheduleSync::class)->bookingToInvoice($booking);
 
         return back();
     }

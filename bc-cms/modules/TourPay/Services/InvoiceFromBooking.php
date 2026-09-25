@@ -74,6 +74,7 @@ class InvoiceFromBooking
         $ledger = app(\Modules\TourPay\Services\Ledger::class);
         app(\Modules\TourPay\Services\MoneyBackfill::class)->opening($booking);   // a booking that predates the ledger is brought in first
         $invoice->recalculate();
+        app(\Modules\TourPay\Services\ScheduleSync::class)->bookingToInvoice($booking);   // the booking's plan, if it has one, is the invoice's schedule
         \Modules\TourPay\Models\LedgerEntry::withoutVendorScope()->where('booking_id', $booking->id)->whereNull('invoice_id')->whereIn('kind', ['payment', 'refund'])->orderBy('id')->get()
             ->each(fn ($e) => $ledger->allocateToInvoice($e, $booking));
         $invoice->recalculate();

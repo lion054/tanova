@@ -185,6 +185,12 @@ class InvoiceBook
      */
     public function setSchedule(Invoice $inv, string $mode, ?float $percent = null, ?int $parts = null, ?int $balanceDays = null, ?string $anchor = null): void
     {
+        $this->applySchedule($inv, $mode, $percent, $parts, $balanceDays, $anchor);
+        app(ScheduleSync::class)->invoiceToBooking($inv->fresh());   // the booking's plan is the same schedule
+    }
+
+    private function applySchedule(Invoice $inv, string $mode, ?float $percent, ?int $parts, ?int $balanceDays, ?string $anchor): void
+    {
         $this->assertEditable($inv);
         Installment::where('invoice_id', $inv->id)->delete();
         if ($mode === 'none') {
@@ -349,7 +355,7 @@ class InvoiceBook
     }
 
     /** After a credit (or its removal) the instalments must still add up to what is owed: change the last ones first. */
-    private function rescaleSchedule(Invoice $inv): void
+    public function rescaleSchedule(Invoice $inv): void
     {
         $rows = $inv->installments()->get();
         if ($rows->isEmpty()) {

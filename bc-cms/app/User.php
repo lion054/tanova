@@ -352,20 +352,16 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function getAvailablePayoutAmountAttribute()
     {
-        $status = setting_item_array('vendor_payout_booking_status');
-        if (empty($status)) return 0;
+        $share = app(\Modules\TourPay\Services\Ledger::class)->payableShare((int) $this->id);
+        if ($share <= 0) return 0;
 
-        $held = app(\Modules\TourPay\Services\Ledger::class)->platformHeldByBooking((int) $this->id);
-        if (empty($held)) return 0;
+        // Commission the business owes in the payout currency (on money it collected itself) is held back.
+        $main = strtoupper((string) (setting_item('currency_main') ?: 'USD'));
+        $owed = app(\Modules\TourPay\Services\Commission::class)->owed((int) $this->id)[$main] ?? 0.0;
 
-        $total = 0.0;
-        Booking::query()->whereIn('status', $status)->where('vendor_id', $this->id)->whereIn('id', array_keys($held))
-            ->selectRaw('id, (total_before_fees - commission + vendor_service_fee_amount) AS vendor_share')->get()
-            ->each(function ($b) use ($held, &$total) {
-                $total += max(0.0, min((float) $held[$b->id], (float) $b->vendor_share));
-            });
+        $used = app(\Modules\TourPay\Services\Commission::class)->usedFromHeld((int) $this->id);   // already settled out of money the platform holds
 
-        return max(0, round($total - (float) $this->total_paid, 2));
+        return max(0, round($share - (float) $this->total_paid - $used - $owed, 2));
     }
 
     public function getTotalPaidAttribute()

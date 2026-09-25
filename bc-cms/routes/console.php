@@ -64,3 +64,6 @@ Schedule::call(fn () => \App\Support\Health::beat())->everyMinute()->name('healt
 
 // Every night: do bookings, invoices, bills and payouts still agree with the money ledger? /health goes red when they do not.
 Schedule::command(\Modules\TourPay\Commands\MoneyReconcileCommand::class)->dailyAt('03:30')->withoutOverlapping();
+
+// Daily exchange rates for the few conversions the books need (free feed; the last known rates stay in use if it is down).
+Schedule::command(\Modules\TourPay\Commands\FxRefreshCommand::class)->dailyAt('04:10');

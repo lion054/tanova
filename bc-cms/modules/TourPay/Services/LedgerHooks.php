@@ -99,13 +99,25 @@ class LedgerHooks
         }
         $currency = strtoupper((string) $inv->currency);
         $booking = $inv->booking_id ? Booking::find($inv->booking_id) : null;
-        // A booking in another currency than its invoice is not mixed into the booking's paid amount.
-        $bookingId = $booking && ($booking->currency === null || $booking->currency === '' || strtoupper($booking->currency) === $currency) ? $booking->id : null;
         $signed = (float) $p->amount;
+        $at = self::when($p->paid_at, $p->created_at);
 
-        return $ledger->record(['vendor_id' => (int) $inv->vendor_id, 'entry_key' => $key, 'kind' => $signed < 0 ? 'refund' : 'payment', 'amount' => $signed, 'currency' => $currency,
+        // The invoice keeps its own currency. If its booking is in another one, the booking's paid amount gets the converted value
+        // (the business's own rate, else the daily feed); with no known rate the payment is simply not linked to the booking.
+        $bookingId = null; $extra = [];
+        if ($booking) {
+            $bookingCurrency = strtoupper((string) ($booking->currency ?: $currency));
+            if ($bookingCurrency === $currency) {
+                $bookingId = $booking->id;
+            } elseif ($c = app(Rates::class)->convert($signed, $currency, $bookingCurrency, $at, (int) $inv->vendor_id)) {
+                $bookingId = $booking->id;
+                $extra = ['booking_amount' => $c['amount'], 'fx_rate' => $c['rate'], 'fx_source' => $c['source']];
+            }
+        }
+
+        return $ledger->record($extra + ['vendor_id' => (int) $inv->vendor_id, 'entry_key' => $key, 'kind' => $signed < 0 ? 'refund' : 'payment', 'amount' => $signed, 'currency' => $currency,
             'held_by' => 'vendor', 'method' => $p->method, 'source' => 'tourpay_payment', 'source_id' => $p->id, 'booking_id' => $bookingId, 'invoice_id' => $inv->id,
-            'reference' => $p->reference ?: $p->gateway_ref, 'note' => $p->notes, 'occurred_at' => self::when($p->paid_at, $p->created_at), 'created_by' => $p->recorded_by]);
+            'reference' => $p->reference ?: $p->gateway_ref, 'note' => $p->notes, 'occurred_at' => $at, 'created_by' => $p->recorded_by]);
     }
 
     public static function mirrorBillPayment(BillPayment $bp): ?LedgerEntry
@@ -130,9 +142,12 @@ class LedgerHooks
             return null;
         }
 
-        return $ledger->record(['vendor_id' => (int) $po->vendor_id, 'entry_key' => $key, 'kind' => 'payout', 'amount' => abs((float) $po->amount),
+        $entry = $ledger->record(['vendor_id' => (int) $po->vendor_id, 'entry_key' => $key, 'kind' => 'payout', 'amount' => abs((float) $po->amount),
             'currency' => strtoupper((string) (setting_item('currency_main') ?: 'USD')), 'held_by' => 'vendor', 'method' => (string) $po->payout_method, 'source' => 'payout',
             'source_id' => $po->id, 'payout_id' => $po->id, 'note' => $po->note_to_vendor, 'occurred_at' => self::when($po->pay_date, $po->updated_at), 'created_by' => $po->last_process_by]);
+        app(Commission::class)->settleFromRetained((int) $po->vendor_id, 'payout:' . $po->id);   // owed commission is settled from what the platform still holds
+
+        return $entry;
     }
 
     /** A payment or refund recorded on a booking's page. */

@@ -168,6 +168,7 @@ class VendorBookingOpsController extends VendorApiController
     {
         $b = $this->booking($code);
         BookingPaymentPlan::where('booking_id', $b->id)->where('status', '!=', 'paid')->delete();
+        app(\Modules\TourPay\Services\ScheduleSync::class)->bookingToInvoice($b);
 
         return $this->noContent();
     }
