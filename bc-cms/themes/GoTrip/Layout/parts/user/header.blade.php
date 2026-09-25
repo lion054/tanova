@@ -70,6 +70,8 @@
         transition: color .12s, border-color .12s !important;
         line-height: 1 !important;
     }
+    .ph-nav a.ph-switch { border: 1.5px solid #0a0a0a; border-radius: 999px; padding: 6px 14px; margin-left: 6px; font-weight: 700; }
+    .ph-nav a.ph-switch:hover { background: #0a0a0a; color: #fff !important; }
     .ph-nav a:hover,
     .main-header .ph-nav a:hover {
         color: #0a0a0a !important;
@@ -232,18 +234,21 @@
 
     {{-- Centre nav --}}
     <div class="ph-nav">
-        @if($user && $user->hasPermission('dashboard_vendor_access'))
+        @php
+            $isVendor = $user && $user->hasPermission('dashboard_vendor_access');
+            $isStaff  = $user && $user->hasPermission('dashboard_access');
+        @endphp
+        @if($isVendor)
             <a href="{{ route('user.integrations.index', [], false) ?? '#' }}">Integrations</a>
             <a href="{{ route('user.concierge.index', [], false) ?? '#' }}">Concierge</a>
             <a href="{{ route('admin.tanova.index', [], false) ?? '#' }}">Tanova</a>
             <a href="{{ route('tourpay.vendor.index', [], false) ?? '#' }}">TourPay</a>
-        @else
+        @elseif($isStaff)
             <a href="{{ route('admin.integrations.hub', [], false) ?? '#' }}">Integrations</a>
-            @if(Route::has('user.concierge.index'))
-            <a href="{{ route('user.concierge.index') }}">Concierge</a>
-            @endif
-            <a href="{{ route('admin.tanova.index', [], false) ?? '#' }}">Tanova</a>
-            <a href="{{ route('tourpay.vendor.index', [], false) ?? '#' }}">TourPay</a>
+        @endif
+        @if($isStaff)
+            {{-- Staff who also run a business: always a visible way back to the admin area (and the admin header has the mirror image). --}}
+            <a href="{{ route('admin.index', [], false) }}" class="ph-switch" title="Switch to the admin area">&larr; Admin</a>
         @endif
     </div>
 

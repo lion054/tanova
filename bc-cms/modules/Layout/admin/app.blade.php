@@ -39,6 +39,7 @@
     </div>
     <div class="main-content {{ $main_content_class ?? '' }}">
         @include('Layout::admin.parts.bc')
+        @include('components.area-notice')
         @yield('content')
         <footer class="main-footer">
             <div class="container-fluid">

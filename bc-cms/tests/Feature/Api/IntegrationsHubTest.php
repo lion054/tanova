@@ -18,6 +18,11 @@ class IntegrationsHubTest extends ApiTestCase
         $this->assertStringContainsString('/user/integrations/category/stay_os', $html, 'links stay on the business\'s own address');
         $this->assertStringNotContainsString('/admin/integrations/category/', $html);
 
+        // The admin address is for staff; a vendor asking for it is sent home (see AreaAccessTest).
+        $this->get('/admin/integrations')->assertRedirect();
+        $staff = $this->makeVendor('Staff Person');
+        \Illuminate\Support\Facades\DB::table('users')->where('id', $staff->id)->update(['role_id' => 1]);
+        $this->actingAs(\App\User::find($staff->id));
         $admin = $this->get('/admin/integrations')->assertOk()->getContent();
         $this->assertStringContainsString('/admin/integrations/category/stay_os', $admin);
         $this->assertStringNotContainsString('/user/integrations/category/', $admin);

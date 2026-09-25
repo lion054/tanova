@@ -714,6 +714,7 @@
             @include('User::frontend.layouts.sidebar')
             <div class="dashboard__main">
                 <div class="dashboard__content bg-light-2">
+                    @include('components.area-notice')
                     @yield('content')
                     @include('Layout::parts.user.footer')
                 </div>

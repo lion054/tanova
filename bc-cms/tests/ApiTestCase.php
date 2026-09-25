@@ -71,6 +71,7 @@ abstract class ApiTestCase extends TestCase
         $u->password = bcrypt('secret-pass-1');
         $u->status = 'publish';
         $u->email_verified_at = now();
+        $u->role_id = 2;   // the vendor role: the vendor area is closed to accounts without it
         $u->save();
 
         return $u;

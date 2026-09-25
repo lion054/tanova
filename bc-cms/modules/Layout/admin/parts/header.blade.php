@@ -119,6 +119,11 @@ $theme = \Modules\Theme\ThemeManager::currentProvider();
                 </div>
             </div>
         </div>
+        @if($user->hasPermission('dashboard_vendor_access'))
+        <div class="header-widget flex-shrink-0 d-flex align-items-center" style="padding:0 10px;">
+            <a href="{{ route('vendor.dashboard') }}" title="{{ __('Switch to your vendor area') }}" style="display:inline-block;border:1.5px solid #0a0a0a;border-radius:999px;padding:5px 14px;font-size:12px;font-weight:700;color:#0a0a0a;text-decoration:none;white-space:nowrap;">{{ __('Vendor view') }} &rarr;</a>
+        </div>
+        @endif
         <div class="dropdown header-widget widget-user flex-shrink-0">
             <div data-toggle="dropdown" class="user-dropdown d-flex align-items-center" aria-haspopup="true" aria-expanded="false">
                 <span class="user-avatar flex-shrink-0">
