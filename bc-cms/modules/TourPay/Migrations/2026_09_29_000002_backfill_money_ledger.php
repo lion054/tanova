@@ -2,15 +2,10 @@
 
 use Illuminate\Database\Migrations\Migration;
 
-/** Loads existing money into the ledger. A failure is logged, not fatal: `php artisan money:backfill` can be run again, and the nightly check reports what is missing. */
+/** Superseded by 2026_09_30_000003_backfill_money_ledger_after_schema: the backfill needs the ledger's full schema, which later migrations complete. */
 return new class extends Migration {
     public function up(): void
     {
-        try {
-            app(\Modules\TourPay\Services\MoneyBackfill::class)->run();
-        } catch (\Throwable $e) {
-            \Log::error('Money ledger backfill failed: ' . $e->getMessage());
-        }
     }
 
     public function down(): void

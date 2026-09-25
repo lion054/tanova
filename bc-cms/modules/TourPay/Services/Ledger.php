@@ -111,6 +111,13 @@ class Ledger
      */
     private function append(array $row): LedgerEntry
     {
+        // Before the chain's own migration has run (a fresh install loads history first), rows are written unsealed; that migration seals them.
+        if (!self::chainReady()) {
+            unset($row['chain_prev'], $row['chain_hash']);
+
+            return LedgerEntry::withoutVendorScope()->create($row);
+        }
+
         return DB::transaction(function () use ($row) {
             $vendor = (int) $row['vendor_id'];
             DB::table('bc_money_ledger_anchor')->insertOrIgnore(['vendor_id' => $vendor, 'last_id' => 0, 'last_hash' => LedgerChain::ZERO, 'updated_at' => now()]);
@@ -123,6 +130,18 @@ class Ledger
 
             return $entry;
         });
+    }
+
+    private static ?bool $chainReady = null;
+
+    /** Only "yes" is remembered, so the chain starts being used the moment its migration has run. */
+    private static function chainReady(): bool
+    {
+        if (self::$chainReady === true) {
+            return true;
+        }
+
+        return (\Illuminate\Support\Facades\Schema::hasTable('bc_money_ledger_anchor') && \Illuminate\Support\Facades\Schema::hasColumn('bc_money_ledger', 'chain_hash')) ? (self::$chainReady = true) : false;
     }
 
     public function find(string $entryKey): ?LedgerEntry
