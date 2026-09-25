@@ -35,10 +35,10 @@
 @endsection
 
 @section('brand-heading')
-    <h1>Join<br><em>Tsoka Travel.</em></h1>
+    <h1>Run your<br><em>travel company.</em></h1>
 @endsection
 @section('brand-sub')
-    <p>Create your account and start managing travel across EMEA.</p>
+    <p>Create your company account, start a free trial, then add your own team.</p>
 @endsection
 
 @section('content')
@@ -84,8 +84,8 @@
 </style>
 
 <div class="form-heading" style="margin-bottom:8px;">
-    <h2>{{ __('Create Account') }}</h2>
-    <p>{{ __('Already have an account?') }} <a href="{{ route('login') }}">{{ __('Sign in') }}</a></p>
+    <h2>{{ __('Create your company account') }}</h2>
+    <p>{{ __('Already have an account?') }} <a href="{{ route('login') }}">{{ __('Sign in') }}</a> &nbsp;·&nbsp; {{ __('Work for a company already on the portal? Ask the owner to add you as staff from their Team page.') }}</p>
 </div>
 
 @if($errors->any())
@@ -108,7 +108,7 @@
     {{-- ── Step 1: Personal ─────────────────────────────── --}}
     <div class="reg-step active" id="step-1">
         <p class="step-label">Step 1 of 3</p>
-        <p class="step-title">{{ __('Personal Info') }}</p>
+        <p class="step-title">{{ __('About you (the company owner)') }}</p>
 
         <div class="field-row">
             <div class="field">
@@ -143,11 +143,11 @@
     {{-- ── Step 2: Property / Business ──────────────────── --}}
     <div class="reg-step" id="step-2">
         <p class="step-label">Step 2 of 3</p>
-        <p class="step-title">{{ __('Your Property') }}</p>
+        <p class="step-title">{{ __('Your company') }}</p>
 
         <div class="field">
-            <label>{{ __('Property / Business Name') }}</label>
-            <input type="text" id="f-business_name" name="business_name" value="{{ old('business_name') }}" placeholder="e.g. Sunset Safari Lodge">
+            <label>{{ __('Company name') }} *</label>
+            <input type="text" id="f-business_name" name="business_name" value="{{ old('business_name') }}" placeholder="e.g. Sunset Safari Tours">
             <p class="field-hint">The name guests and partners will see on your listings.</p>
         </div>
 
@@ -204,7 +204,7 @@
 
         <div class="step-nav">
             <button type="button" class="btn-back" onclick="goStep(2)">← {{ __('Back') }}</button>
-            <button type="submit" class="btn-next">{{ __('Create Account') }}</button>
+            <button type="submit" class="btn-next">{{ __('Create company account') }}</button>
         </div>
     </div>
 

@@ -28,7 +28,7 @@
     <h2>{{ __('Sign In') }}</h2>
     <p>{{ __("Don't have an account?") }}
         @if(is_enable_registration())
-            <a href="{{ route('auth.register') }}">{{ __('Create one') }}</a>
+            <a href="{{ route('auth.register') }}">{{ __('Create your company account') }}</a>
         @endif
     </p>
 </div>

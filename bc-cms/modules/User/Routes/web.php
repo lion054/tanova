@@ -69,7 +69,7 @@ Route::post('newsletter/subscribe','UserController@subscribe')->name('newsletter
 //Custom User  Register
 
 Route::get('register','Auth\RegisterController@showRegistrationForm')->name('auth.register');
-Route::post('register','Auth\RegisterController@register')->name('auth.register.store');
+Route::post('register','Auth\RegisterController@register')->name('auth.register.store')->middleware('throttle:10,1');
 
 Route::get('/user/my-plan','PlanController@myPlan')->name('user.plan')->middleware(['auth', 'verified']);
 Route::get('/plan','PlanController@index')->name('plan');

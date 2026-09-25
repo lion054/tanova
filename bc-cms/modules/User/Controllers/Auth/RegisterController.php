@@ -52,6 +52,7 @@
                         ->uncompromised(),
                 ],
                 'phone'       => ['required','unique:users'],
+                'business_name' => ['required', 'string', 'max:255'],   // signing up creates a company
                 'term'       => ['required'],
             ];
             $messages = [
@@ -62,6 +63,7 @@
                 'first_name.required' => __('The first name is required field'),
                 'last_name.required'  => __('The last name is required field'),
                 'term.required'       => __('The terms and conditions field is required'),
+                'business_name.required' => __('Your company name is required'),
             ];
             if (ReCaptchaEngine::isEnable() and setting_item("user_enable_register_recaptcha")) {
                 $codeCapcha = $request->input('g-recaptcha-response');
@@ -93,6 +95,17 @@
                     'city'          => $request->input('city'),
                     'country'       => $request->input('country'),
                 ]);
+                // Signing up creates a vendor company; the person is made its owner before they are signed in.
+                $onboarding = app(\Modules\Vendor\Services\Onboarding::class)->registerCompany($user);
+                if ($onboarding['approved']) {
+                    $days = $onboarding['trial'] ? (int) now()->diffInDays($onboarding['trial']->ends_at) + 1 : 0;
+                    session()->put('welcome_notice', __('Welcome to :site! :company is ready.', ['site' => setting_item('site_title') ?: 'the portal', 'company' => $user->business_name])
+                        . ($days ? ' ' . __('You have a free :d-day trial: add your first listing, and invite your team under Team.', ['d' => $days]) : ' ' . __('Invite your team under Team.')));
+                    $redirectTo = '/user/dashboard';
+                } else {
+                    session()->flash('area_notice', __('Thanks for signing up. The platform team will approve your company shortly; we will email you.'));
+                    $redirectTo = route('user.profile.index');
+                }
                 event(new Registered($user));
                 Auth::loginUsingId($user->id);
                 try {
@@ -101,8 +114,6 @@
 
                     Log::warning("SendMailUserRegistered: " . $exception->getMessage());
                 }
-                $user->assignRole(setting_item('user_role'));
-                $redirectTo = $request->input('redirect') ?: route('user.booking_history');
                 return response()->json([
                     'error'    => false,
                     'messages' => false,

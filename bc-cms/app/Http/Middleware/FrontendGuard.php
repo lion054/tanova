@@ -12,6 +12,7 @@ class FrontendGuard
     protected array $guestAllowed = [
         'login',
         'register',
+        'vendor/register',   // the company sign-up form on the public site
         'forgot-password',
         'reset-password',
         'reset-password/*',

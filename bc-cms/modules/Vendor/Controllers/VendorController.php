@@ -109,29 +109,13 @@ class VendorController extends FrontendController
                 return $this->sendError(__("Can not register"));
             }
 
-            //                check vendor auto approved
-            $vendorAutoApproved = setting_item('vendor_auto_approved');
-            $dataVendor['role_request'] = setting_item('vendor_role');
-            if ($vendorAutoApproved) {
-                if ($dataVendor['role_request']) {
-                    $user->assignRole($dataVendor['role_request']);
-                }
-                $dataVendor['status'] = 'approved';
-                $dataVendor['approved_time'] = now();
-            } else {
-                $dataVendor['status'] = 'pending';
-                $user->assignRole(setting_item('user_role'));
-            }
-            $vendorRequestData = $user->vendorRequest()->save(new VendorRequest($dataVendor));
+            // Same path as the portal's own sign-up: a company, on a trial (see Onboarding).
+            $onboarding = app(\Modules\Vendor\Services\Onboarding::class)->registerCompany($user);
+            $vendorAutoApproved = $onboarding['approved'];
             Auth::loginUsingId($user->id);
-            try {
-                event(new NewVendorRegistered($user, $vendorRequestData));
-            } catch (Exception $exception) {
-                Log::warning("NewVendorRegistered: " . $exception->getMessage());
-            }
             if ($vendorAutoApproved) {
                 return $this->sendSuccess([
-                    'redirect' => url(app_get_locale(false, '/')),
+                    'redirect' => url('/user/dashboard'),
                 ]);
             } else {
                 return $this->sendSuccess([
