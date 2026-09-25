@@ -27,7 +27,7 @@ class MoneyBackfill
     /** @return array<string,int> what was written or adjusted */
     public function run(): array
     {
-        $n = ['tourpay_payments' => 0, 'booking_payments' => 0, 'bill_payments' => 0, 'payouts' => 0, 'opening' => 0, 'booking_caches' => 0, 'invoice_allocations' => 0];
+        $n = ['tourpay_payments' => 0, 'booking_payments' => 0, 'bill_payments' => 0, 'payouts' => 0, 'opening' => 0, 'booking_caches' => 0, 'invoice_allocations' => 0, 'commission' => 0];
         Ledger::$backfilling = true;
         try {
             Payment::withoutVendorScope()->where('status', 'confirmed')->where('source', '!=', 'booking')->orderBy('id')->each(function (Payment $p) use (&$n) {
@@ -62,6 +62,14 @@ class MoneyBackfill
         // Invoices made from a booking: bring them level with the money that came in on the booking.
         Invoice::withoutVendorScope()->whereNotNull('booking_id')->where('type', 'invoice')->where('status', '!=', 'void')->orderBy('id')->each(function (Invoice $inv) use (&$n) {
             $n['invoice_allocations'] += $this->levelInvoice($inv);
+        });
+
+        // Commission on money the businesses collected themselves, for everything already in the ledger (once each; new money accrues as it is recorded).
+        $commission = app(Commission::class);
+        LedgerEntry::withoutVendorScope()->where('held_by', 'vendor')->whereIn('kind', ['payment', 'refund'])->whereNotNull('booking_id')->where('source', '!=', 'opening')->orderBy('id')->each(function (LedgerEntry $e) use ($commission, &$n) {
+            $before = $commission->accruedFor($e);
+            $commission->accrue($e);
+            $n['commission'] += $before ? 0 : (int) $commission->accruedFor($e);
         });
 
         return $n;

@@ -516,15 +516,71 @@ class MoneyLedgerTest extends ApiTestCase
         $this->assertLessThan(10.0, microtime(true) - $t);
     }
 
-    public function test_production_health_goes_red_when_the_database_is_not_protecting_the_ledger(): void
+    public function test_the_hash_chain_catches_an_edit_a_deletion_and_a_forged_row_made_behind_the_apps_back(): void
     {
-        $this->assertFalse(app(MoneyReconcile::class)->protectedByDatabase(), 'the test database has no append-only triggers');
-        $this->assertArrayNotHasKey('ledger_protected', Health::run()['checks'], 'only production insists on them');
+        $inv = $this->invoice(900);
+        $book = app(InvoiceBook::class);
+        foreach ([100, 200, 300] as $amt) { $book->recordPayment($inv->fresh(), $amt, 'bank', now()->toDateString(), null, null, 'manual', $this->vendor->id); }
+        $this->assertSame([], \Modules\TourPay\Services\LedgerChain::verify(), 'a normal run leaves an intact chain');
+        $ids = LedgerEntry::withoutVendorScope()->where('vendor_id', $this->vendor->id)->orderBy('id')->pluck('id')->all();
 
-        $this->app->detectEnvironment(fn () => 'production');
-        $h = Health::run();
-        $this->assertFalse($h['checks']['ledger_protected']['ok']);
-        $this->assertStringContainsString('triggers', $h['checks']['ledger_protected']['detail']);
-        $this->app->detectEnvironment(fn () => 'testing');
+        // 1. Someone edits an amount with raw SQL.
+        DB::table('bc_money_ledger')->where('id', $ids[1])->update(['amount' => 999]);
+        $res = app(MoneyReconcile::class)->run();
+        $this->assertArrayHasKey('ledger_chain_broken', $res['problems']);
+        $this->assertStringContainsString('was changed', $res['samples']['ledger_chain_broken'][0]);
+        $this->assertFalse(Health::run()['checks']['money']['ok'], 'the health check goes red');
+        DB::table('bc_money_ledger')->where('id', $ids[1])->update(['amount' => 200]);   // put it back
+        $this->assertSame([], \Modules\TourPay\Services\LedgerChain::verify());
+
+        // 2. A row in the middle is deleted.
+        $copy = (array) DB::table('bc_money_ledger')->where('id', $ids[1])->first();
+        DB::table('bc_money_ledger')->where('id', $ids[1])->delete();
+        $this->assertStringContainsString('removed or added', \Modules\TourPay\Services\LedgerChain::verify()[0]);
+        DB::table('bc_money_ledger')->insert($copy);   // put it back
+        $this->assertSame([], \Modules\TourPay\Services\LedgerChain::verify());
+
+        // 3. The newest row is deleted (caught by the anchor).
+        $last = (array) DB::table('bc_money_ledger')->where('id', $ids[2])->first();
+        DB::table('bc_money_ledger')->where('id', $ids[2])->delete();
+        $this->assertStringContainsString('anchor', \Modules\TourPay\Services\LedgerChain::verify()[0]);
+        DB::table('bc_money_ledger')->insert($last);
+
+        // 4. A forged row with no seal.
+        $forged = $last; unset($forged['id']); $forged['entry_key'] = 'forged:1'; $forged['chain_hash'] = null; $forged['chain_prev'] = null;
+        DB::table('bc_money_ledger')->insert($forged);
+        $this->assertStringContainsString('without the chain', \Modules\TourPay\Services\LedgerChain::verify()[0]);
+        DB::table('bc_money_ledger')->where('entry_key', 'forged:1')->delete();
+        $this->assertSame([], \Modules\TourPay\Services\LedgerChain::verify());
+    }
+
+    public function test_the_chain_stays_intact_through_reversals_commission_and_a_mixed_run(): void
+    {
+        $b = $this->booking(1000, null, ['commission' => 100]);
+        $inv = $this->invoice(1000, $b);
+        $p = app(InvoiceBook::class)->recordPayment($inv, 400, 'bank', now()->toDateString(), null, null, 'manual', $this->vendor->id);
+        app(BookingPayments::class)->recordPayment(Booking::find($b->id), 100, 'cash', 'C-1', null, null, $this->vendor->id);
+        app(InvoiceBook::class)->removePayment($inv->fresh(), $p);    // a reversal
+        $this->assertGreaterThan(3, LedgerEntry::withoutVendorScope()->where('vendor_id', $this->vendor->id)->count(), 'payments, reversal and commission rows');
+        $this->assertSame([], \Modules\TourPay\Services\LedgerChain::verify());
+        $this->assertSame([], app(MoneyReconcile::class)->run()['problems']);
+    }
+
+    public function test_the_backfill_gives_existing_money_its_commission_once(): void
+    {
+        $b = $this->booking(1000, null, ['commission' => 100]);
+        // Money that was in the ledger before commission existed: written with the accrual switched off.
+        Ledger::$backfilling = true;
+        app(Ledger::class)->record(['vendor_id' => $this->vendor->id, 'entry_key' => 'legacy:1', 'kind' => 'payment', 'amount' => 500, 'currency' => 'USD', 'source' => 'booking_ledger', 'source_id' => 9, 'booking_id' => $b->id]);
+        Ledger::$backfilling = false;
+        $this->assertSame(0, LedgerEntry::withoutVendorScope()->where('kind', 'commission')->count());
+        $this->assertArrayHasKey('commission_missing', app(MoneyReconcile::class)->run()['problems']);
+
+        $first = app(MoneyBackfill::class)->run();
+        $again = app(MoneyBackfill::class)->run();
+        $this->assertSame(1, $first['commission']);
+        $this->assertSame(0, $again['commission']);
+        $this->assertEquals(['USD' => 50.0], app(\Modules\TourPay\Services\Commission::class)->owed($this->vendor->id));
+        $this->assertArrayNotHasKey('commission_missing', app(MoneyReconcile::class)->run()['problems']);
     }
 }

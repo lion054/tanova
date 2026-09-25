@@ -22,7 +22,7 @@ class BookingPaymentsTest extends TestCase
 {
     private const VENDOR = 101;
 
-    private array $tables = ['bc_money_ledger', 'bc_tourpay_payments', 'bc_tourpay_invoices', 'bc_tourpay_settings', 'bc_booking_ledger', 'bc_booking_payment_plan', 'bc_booking_meta', 'bc_bookings'];
+    private array $tables = ['bc_money_ledger_anchor', 'bc_money_ledger', 'bc_tourpay_payments', 'bc_tourpay_invoices', 'bc_tourpay_settings', 'bc_booking_ledger', 'bc_booking_payment_plan', 'bc_booking_meta', 'bc_bookings'];
 
     protected function setUp(): void
     {
@@ -115,9 +115,17 @@ class BookingPaymentsTest extends TestCase
             $t->decimal('booking_amount', 14, 2)->nullable();
             $t->decimal('fx_rate', 18, 8)->nullable();
             $t->string('fx_source', 20)->nullable();
+            $t->char('chain_prev', 64)->nullable();
+            $t->char('chain_hash', 64)->nullable();
             $t->dateTime('occurred_at');
             $t->unsignedBigInteger('created_by')->nullable();
             $t->timestamp('created_at')->useCurrent();
+        });
+        Schema::create('bc_money_ledger_anchor', function (Blueprint $t) {
+            $t->unsignedBigInteger('vendor_id')->primary();
+            $t->unsignedBigInteger('last_id')->default(0);
+            $t->char('last_hash', 64)->default(str_repeat('0', 64));
+            $t->timestamp('updated_at')->nullable();
         });
         Schema::create('bc_tourpay_invoices', function (Blueprint $t) {
             $t->id();

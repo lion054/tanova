@@ -39,6 +39,12 @@ class Commission
             'note' => __('Commission on money collected directly'), 'occurred_at' => $e->occurred_at]);
     }
 
+    /** Has this payment already been given its commission row? */
+    public function accruedFor(LedgerEntry $e): bool
+    {
+        return LedgerEntry::withoutVendorScope()->where('entry_key', 'commission:' . $e->entry_key)->exists();
+    }
+
     /** What a business owes the platform in commission, by currency (positive = owed). @return array<string,float> */
     public function owed(int $vendorId): array
     {

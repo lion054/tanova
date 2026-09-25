@@ -54,7 +54,7 @@ class Ledger
         [$base, $baseAmount] = $this->inBase((int) $a['vendor_id'], $amount, $currency, isset($a['occurred_at']) ? Carbon::parse($a['occurred_at']) : null);
 
         try {
-            $entry = LedgerEntry::withoutVendorScope()->create([
+            $entry = $this->append([
                 'vendor_id' => (int) $a['vendor_id'], 'entry_key' => $a['entry_key'], 'kind' => $a['kind'], 'amount' => $amount, 'currency' => $currency,
                 'held_by' => $a['held_by'] ?? 'vendor', 'method' => $a['method'] ?? null, 'source' => $a['source'], 'source_id' => $a['source_id'] ?? null,
                 'booking_id' => $a['booking_id'] ?? null, 'invoice_id' => $a['invoice_id'] ?? null, 'bill_id' => $a['bill_id'] ?? null, 'payout_id' => $a['payout_id'] ?? null,
@@ -87,7 +87,7 @@ class Ledger
         if (!$orig || $orig->isReversal()) {
             return null;
         }
-        $entry = $this->find($entryKey . ':reversal') ?: LedgerEntry::withoutVendorScope()->create([
+        $entry = $this->find($entryKey . ':reversal') ?: $this->append([
             'vendor_id' => $orig->vendor_id, 'entry_key' => $entryKey . ':reversal', 'kind' => $orig->kind, 'amount' => -1 * (float) $orig->amount, 'currency' => $orig->currency,
             'held_by' => $orig->held_by, 'method' => $orig->method, 'source' => $orig->source, 'source_id' => $orig->source_id, 'booking_id' => $orig->booking_id,
             'invoice_id' => $orig->invoice_id, 'bill_id' => $orig->bill_id, 'payout_id' => $orig->payout_id, 'reverses_id' => $orig->id, 'reference' => $orig->reference,
@@ -103,6 +103,26 @@ class Ledger
         }
 
         return $entry;
+    }
+
+    /**
+     * The one place a row is written. The business's chain is locked, the row is sealed with the hash of the row before it, and the
+     * chain's anchor moves on, all in one transaction, so two writers can never fork the chain.
+     */
+    private function append(array $row): LedgerEntry
+    {
+        return DB::transaction(function () use ($row) {
+            $vendor = (int) $row['vendor_id'];
+            DB::table('bc_money_ledger_anchor')->insertOrIgnore(['vendor_id' => $vendor, 'last_id' => 0, 'last_hash' => LedgerChain::ZERO, 'updated_at' => now()]);
+            $anchor = DB::table('bc_money_ledger_anchor')->where('vendor_id', $vendor)->lockForUpdate()->first();
+            $row['occurred_at'] = Carbon::parse($row['occurred_at']);
+            $row['chain_prev'] = $anchor->last_hash;
+            $row['chain_hash'] = LedgerChain::hash($anchor->last_hash, $row);
+            $entry = LedgerEntry::withoutVendorScope()->create($row);
+            DB::table('bc_money_ledger_anchor')->where('vendor_id', $vendor)->update(['last_id' => $entry->id, 'last_hash' => $row['chain_hash'], 'updated_at' => now()]);
+
+            return $entry;
+        });
     }
 
     public function find(string $entryKey): ?LedgerEntry

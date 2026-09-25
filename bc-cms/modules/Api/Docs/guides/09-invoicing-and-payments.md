@@ -37,7 +37,7 @@ The status of an invoice **follows its payments**: `draft`, `sent`, `part_paid`,
 
 ## One set of books
 
-Money is recorded once, in a single append-only ledger, and every total you see is worked out from it: a booking's `paid`, an invoice's `amount_paid`, a supplier bill's paid amount, the Finance statement and what the platform can pay out to you. A payment is never edited or deleted; a mistake is corrected by a reversing entry.
+Money is recorded once, in a single append-only ledger, and every total you see is worked out from it: a booking's `paid`, an invoice's `amount_paid`, a supplier bill's paid amount, the Finance statement and what the platform can pay out to you. A payment is never edited or deleted; a mistake is corrected by a reversing entry. The ledger is also tamper-evident: every entry is sealed with a hash that includes the one before it, so an entry changed or removed behind the application's back is found by the nightly check.
 
 - **A booking and its invoice show the same money.** A payment recorded on the booking (or made through a checkout on it) also counts on the booking's invoice, and a payment on the invoice also counts on the booking, in the same currency. Refunds recorded on the booking come off the invoice too. If the invoice is in another currency than the booking, the two are kept apart.
 - **The booking's status follows the money** (part paid, paid, back to unpaid after a refund), the way it does for any online payment. A paid booking is never marked completed: the trip still has to happen.

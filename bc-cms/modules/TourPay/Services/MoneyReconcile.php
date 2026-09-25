@@ -98,7 +98,17 @@ class MoneyReconcile
             WHERE l.source = 'tourpay_payment' AND l.reverses_id IS NULL AND l.booking_id IS NULL AND i.booking_id IS NOT NULL LIMIT {$cap}");
         if ($unlinked) { $found('payment_not_linked_to_booking_no_rate', $unlinked, fn ($r) => $r->entry_key . ' (' . $r->currency . ')'); }
 
-        // 8. In production the database itself must refuse to change the ledger.
+        // 7b. Money a business collected itself has its commission row (when the booking carries a commission).
+        $noCommission = DB::select("SELECT l.id FROM bc_money_ledger l JOIN bc_bookings b ON b.id = l.booking_id
+            LEFT JOIN bc_money_ledger c ON c.source = 'commission' AND c.source_id = l.id
+            WHERE l.held_by = 'vendor' AND l.kind IN ('payment', 'refund') AND l.source <> 'opening' AND COALESCE(b.commission, 0) > 0 AND COALESCE(NULLIF(b.total, 0), b.total_before_fees, 0) > 0 AND c.id IS NULL
+            AND ABS(l.amount) * (b.commission / COALESCE(NULLIF(b.total, 0), b.total_before_fees)) >= 0.005 LIMIT {$cap}");
+        if ($fix) { foreach ($noCommission as $r) { app(Commission::class)->accrue(\Modules\TourPay\Models\LedgerEntry::withoutVendorScope()->find($r->id)); $fixed++; } }
+        elseif ($noCommission) { $found('commission_missing', $noCommission, fn ($r) => 'ledger row #' . $r->id); }
+
+        // 8. The ledger's hash chain is intact: no row was changed, removed or slipped in behind the application's back.
+        $chain = LedgerChain::verify();
+        if ($chain) { $problems['ledger_chain_broken'] = count($chain); $samples['ledger_chain_broken'] = array_slice($chain, 0, 5); }
         $protected = $this->protectedByDatabase();
         $result = ['ok' => empty($problems), 'ran_at' => now()->toIso8601String(), 'problems' => $problems, 'samples' => $samples, 'fixed' => $fixed, 'protected' => $protected];
         Cache::forever(self::CACHE_KEY, $result);
