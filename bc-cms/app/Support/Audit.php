@@ -17,13 +17,15 @@ class Audit
     public static function log(string $action, ?object $subject = null, array $meta = [], ?int $vendorId = null, ?string $summary = null): void
     {
         try {
-            $req = app()->runningInConsole() ? null : request();
+            $req = (app()->runningInConsole() && !app()->runningUnitTests()) ? null : request();
             $key = $req?->attributes->get('resolved_api_key');
-            $user = auth()->user();
+            // A staff member works as their company (see ActAsCompany): the trail names the real person.
+            $staff = $req?->attributes->get('staff_actor');
+            $user = $staff ?: auth()->user();
             DB::table('bc_audit_log')->insert([
                 'vendor_id'    => $vendorId ?? ($subject->vendor_id ?? null) ?? (function_exists('resolve_current_vendor_id') ? resolve_current_vendor_id() : null),
                 'actor_id'     => $key ? $key->id : ($user->id ?? null),
-                'actor_type'   => $key ? 'api_key' : ($user ? 'user' : ($req && !app()->runningInConsole() ? 'guest' : 'system')),
+                'actor_type'   => $key ? 'api_key' : ($staff ? 'staff' : ($user ? 'user' : ($req && !app()->runningInConsole() ? 'guest' : 'system'))),
                 'action'       => substr($action, 0, 60),
                 'subject_type' => $subject ? strtolower(class_basename($subject)) : null,
                 'subject_id'   => $subject->id ?? null,

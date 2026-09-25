@@ -29,7 +29,7 @@ class AreaGuard
 
         $has = fn (string $permission) => $user->hasPermission($permission);
         if ($area === 'staff' && !$has(config('areas.staff.permission'))) {
-            return $this->turnAway($request, $has('dashboard_vendor_access') ? '/user/dashboard' : '/user/profile',
+            return $this->turnAway($request, ($has('dashboard_vendor_access') || \Modules\Vendor\Services\StaffAccess::membership($user)) ? '/user/dashboard' : '/user/profile',
                 __('That area is for the platform team. You are in your own area.'));
         }
         if ($area === 'vendor' && !$has(config('areas.vendor.permission'))) {

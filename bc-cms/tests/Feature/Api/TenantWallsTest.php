@@ -18,7 +18,8 @@ class TenantWallsTest extends ApiTestCase
         Event::fake([VendorTeamRequestCreatedEvent::class]);
         $member = $this->makeVendor('Team Member');
         $mine = DB::table('vendor_team')->insertGetId(['vendor_id' => $this->vendor->id, 'member_id' => $member->id, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
-        $theirs = DB::table('vendor_team')->insertGetId(['vendor_id' => $this->other->id, 'member_id' => $member->id, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
+        $theirMember = $this->makeVendor('Their Member');   // nobody works for two companies
+        $theirs = DB::table('vendor_team')->insertGetId(['vendor_id' => $this->other->id, 'member_id' => $theirMember->id, 'status' => 'pending', 'created_at' => now(), 'updated_at' => now()]);
         $this->actingAs($this->vendor);
 
         $this->get(route('vendor.team.re-send-request', $theirs));

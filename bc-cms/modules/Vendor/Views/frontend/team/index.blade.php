@@ -1,72 +1,48 @@
 @extends('layouts.user')
-
 @section('content')
-
-    <h2 class="title-bar">
-        {{__("Vendor Teams")}}
-    </h2>
+<div class="container-fluid">
+    <h2 class="title-bar">{{ __('Team members') }}</h2>
     @include('admin.message')
-
-    <p>{{__('As an author, you can add other users to your team. People on your team will be able to manage your services.')}}</p>
+    <p style="max-width:720px;">{{ __('Your team are the people who work in your company. Each one signs in with their own email and password, sees only your company\'s things, and can open only the parts you tick. They can never open the platform admin area, your subscription, API keys, integrations or team settings.') }}</p>
     <hr>
-    <form method="post" action="{{route('vendor.team.add')}}">
+    <form method="post" action="{{ route('vendor.team.add') }}">
         @csrf
         <div class="row">
-            <div class="col-md-3">
-                <label class="font-weight-bold">{{__("Add someone to your team:")}}</label>
-                <input type="email" value="{{old('email')}}" name="email" required class="form-control" placeholder="{{__("Email address")}}" aria-label="{{__("Email address")}}" aria-describedby="button-addon2">
-            </div>
-            <div class="col-md-3">
-                <label class="font-weight-bold">{{__("Permissions")}}</label>
-                @foreach(get_bookable_services() as $service_id=>$service)
-                    <div><label ><input @if(in_array($service_id,old('permissions',[]))) checked @endif type="checkbox" name="permissions[]" value="{{$service_id}}">{{$service::getModelName()}}</label></div>
+            <div class="col-md-3"><label class="font-weight-bold">{{ __('Name') }}</label><input type="text" name="name" value="{{ old('name') }}" required class="form-control" placeholder="{{ __('Full name') }}"></div>
+            <div class="col-md-3"><label class="font-weight-bold">{{ __('Email address') }}</label><input type="email" name="email" value="{{ old('email') }}" required class="form-control" placeholder="name@yourcompany.com"></div>
+            <div class="col-md-6">
+                <label class="font-weight-bold">{{ __('What they can open') }}</label>
+                @foreach($modules as $key => $label)
+                    <div><label><input type="checkbox" name="permissions[]" value="{{ $key }}" {{ in_array($key, old('permissions', [])) ? 'checked' : '' }}> {{ __($label) }}</label></div>
                 @endforeach
+                <small class="text-muted">{{ __('The company dashboard and Today are always included.') }}</small>
             </div>
         </div>
-        <button class="btn btn-success"><i class="fa fa-plus"></i> {{__("Add")}}</button>
+        <button class="btn btn-success mt-2"><i class="fa fa-plus"></i> {{ __('Add and send invitation') }}</button>
     </form>
-
     <hr>
-    <h4>{{__("Users on your team")}}</h4>
+    <h4>{{ __('People on your team') }}</h4>
     <div class="table-responsive">
-        <table class="table table-bordered table-striped table-booking-history">
-            <thead>
-            <tr>
-                <th width="2%">{{__("#")}}</th>
-                <th>{{__("Display Name")}}</th>
-                <th>{{__("Email")}}</th>
-                <th>{{__("Permissions")}}</th>
-                <th>{{__("Status")}}</th>
-                <th>{{__("Actions")}}</th>
-            </tr>
-            </thead>
+        <table class="table table-bordered table-striped">
+            <thead><tr><th>{{ __('Name') }}</th><th>{{ __('Email') }}</th><th>{{ __('Can open') }}</th><th>{{ __('Status') }}</th><th></th></tr></thead>
             <tbody>
-            @foreach($rows as $vendorTeam)
+            @forelse($rows as $t)
                 <tr>
-                    <td>#{{$vendorTeam->member->id ?? ''}}</td>
-                    <th>{{$vendorTeam->member->display_name ?? ''}}</th>
-                    <td>
-                        {{$vendorTeam->member->email?? ''}}
-                    </td>
-                    <td>{{implode(', ',$vendorTeam->permissions)}}</td>
-                    <td><span class="badge badge-{{$vendorTeam->status_badge}}">{{$vendorTeam->status_text}}</span></td>
-                    <td>
-                        <div class="dropdown">
-                            <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-toggle="dropdown" aria-expanded="false">
-                                {{__("Actions")}}
-                            </button>
-                            <div class="dropdown-menu">
-                                <a class="dropdown-item" href="{{route('vendor.team.edit',['vendorTeam'=>$vendorTeam])}}">{{__("Edit")}}</a>
-                                @if($vendorTeam->status == Modules\Vendor\Models\VendorTeam::STATUS_PENDING)
-                                    <a class="dropdown-item" href="{{route('vendor.team.re-send-request',['vendorTeam'=>$vendorTeam])}}">{{__("Send email")}}</a>
-                                @endif
-                                <a class="dropdown-item" href="{{URL::signedRoute('vendor.team.delete',['vendorTeam'=>$vendorTeam->id])}}">{{__("Delete")}}</a>
-                            </div>
-                        </div>
+                    <td><strong>{{ $t->member->display_name ?? '' }}</strong></td>
+                    <td>{{ $t->member->email ?? '' }}</td>
+                    <td>{{ collect($t->permissions)->map(fn ($k) => __($modules[$k] ?? $k))->implode(', ') }}</td>
+                    <td><span class="badge badge-{{ $t->status_badge }}">{{ $t->status_text }}</span></td>
+                    <td class="text-nowrap">
+                        <a class="btn btn-sm btn-outline-secondary" href="{{ route('vendor.team.edit', $t->id) }}">{{ __('Change access') }}</a>
+                        @if($t->status !== Modules\Vendor\Models\VendorTeam::STATUS_PUBLISH)<a class="btn btn-sm btn-outline-secondary" href="{{ route('vendor.team.re-send-request', $t->id) }}">{{ __('Send invitation again') }}</a>@endif
+                        <a class="btn btn-sm btn-outline-danger" href="{{ URL::signedRoute('vendor.team.delete', ['vendorTeam' => $t->id]) }}" onclick="return confirm('{{ __('Remove this person from your team?') }}')">{{ __('Remove') }}</a>
                     </td>
                 </tr>
-            @endforeach
+            @empty
+                <tr><td colspan="5" class="text-center text-muted">{{ __('Nobody yet.') }}</td></tr>
+            @endforelse
             </tbody>
         </table>
     </div>
+</div>
 @endsection

@@ -30,6 +30,7 @@ class FrontendGuard
         'health',
         'tourpay/pay/*',
         'tourpay/notify/*',
+        'team-accept',   // the signed link in a staff invitation
 
         // Guest booking payment journey.
         //
@@ -100,6 +101,7 @@ class FrontendGuard
         'support/*',
         'tourpay/pay/*',
         'tourpay/notify/*',
+        'team-accept',   // the signed link in a staff invitation
         // Assets & utilities
         'custom-css',
         'check-cookie',

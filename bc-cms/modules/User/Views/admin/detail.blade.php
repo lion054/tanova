@@ -134,6 +134,27 @@
                                             @endforeach
                                         </select>
                                     </div>
+                                    @isset($staffRoleId)
+                                    <div class="form-group" id="staff-company" style="display:none;border:1px solid #e5e5e5;border-radius:6px;padding:12px;">
+                                        <label>{{__('Company they work for')}} <span class="text-danger">*</span></label>
+                                        <select class="form-control" name="company_id">
+                                            <option value="">{{ __('-- Select a vendor company --') }}</option>
+                                            @foreach($companies as $c)<option value="{{ $c->id }}" {{ (int) old('company_id', optional($staffTeam)->vendor_id) === (int) $c->id ? 'selected' : '' }}>{{ $c->business_name ?: $c->name }} ({{ $c->email }})</option>@endforeach
+                                        </select>
+                                        <label class="mt-2">{{__('What they can open')}}</label>
+                                        @foreach($staffModules as $key => $label)
+                                            <div><label><input type="checkbox" name="staff_modules[]" value="{{ $key }}" {{ in_array($key, old('staff_modules', (array) optional($staffTeam)->permissions)) ? 'checked' : '' }}> {{ __($label) }}</label></div>
+                                        @endforeach
+                                        <small class="text-muted">{{__('Every staff member belongs to exactly one company and sees only that company\'s things.')}}</small>
+                                    </div>
+                                    <script>
+                                        (function () {
+                                            var sel = document.querySelector('select[name="role_id"]'), box = document.getElementById('staff-company');
+                                            function toggle() { box.style.display = parseInt(sel.value, 10) === {{ (int) $staffRoleId }} ? 'block' : 'none'; }
+                                            sel.addEventListener('change', toggle); toggle();
+                                        })();
+                                    </script>
+                                    @endisset
                                 @endif
                                 <div class="form-group">
                                     <label>{{__('Email Verified?')}}</label>

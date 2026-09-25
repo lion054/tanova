@@ -32,12 +32,21 @@ class VendorTeamRequestCreatedEmail extends Mailable
 
     public function body()
     {
-        $body = '
-            <h1>Hello! ' . $this->member->display_name . '</h1>
-            <p>You are invited to join the team :<a href="#" target="_blank">' . $this->vendor->display_name . '</a></p>
+        $company = e($this->vendor->business_name ?: $this->vendor->display_name);
+        $set = '';
+        // A person who has never signed in needs a password: a one-time link to choose it.
+        if (empty($this->member->last_login_at)) {
+            $token = \Illuminate\Support\Facades\Password::broker()->createToken($this->member);
+            $url = route('password.reset', ['token' => $token, 'email' => $this->member->email]);
+            $set = '<p>First, choose your password: <a href="' . $url . '">set my password</a>.</p>';
+        }
+
+        return '
+            <h1>Hello ' . e($this->member->display_name) . '</h1>
+            <p><strong>' . $company . '</strong> has added you to its team on ' . e(setting_item('site_title')) . '. You will work inside ' . $company . ' and see only its bookings, customers and records, and only the parts its owner gave you.</p>
+            ' . $set . '
             <p style="text-align: center">' . $this->button() . '</p>
-            <p>Regards,<br>' . setting_item('site_title') . '</p>';
-        return $body;
+            <p>Regards,<br>' . e(setting_item('site_title')) . '</p>';
     }
 
     public function button()

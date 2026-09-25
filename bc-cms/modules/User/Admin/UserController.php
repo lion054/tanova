@@ -52,6 +52,20 @@ class UserController extends AdminController
         return view('User::admin.index', $data);
     }
 
+    /** Data for the company-staff part of the user form: the companies to choose from, the modules, and this person's current link. */
+    private function staffFormData($row): array
+    {
+        $team = $row->id ? \Modules\Vendor\Models\VendorTeam::where('member_id', $row->id)->first() : null;
+
+        return [
+            'staffRoleId'  => (int) \Illuminate\Support\Facades\DB::table('core_roles')->where('code', 'vendor_staff')->value('id'),
+            'companies'    => User::whereIn('role_id', \Illuminate\Support\Facades\DB::table('core_role_permissions')->where('permission', 'dashboard_vendor_access')->pluck('role_id'))
+                ->whereNull('vendor_id')->orderBy('business_name')->get(['id', 'name', 'business_name', 'email']),
+            'staffModules' => \Modules\Vendor\Services\StaffAccess::modules(),
+            'staffTeam'    => $team,
+        ];
+    }
+
     public function create(Request $request)
     {
 
@@ -59,6 +73,7 @@ class UserController extends AdminController
         $data = [
             'row' => $row,
             'roles' => Role::all(),
+        ] + $this->staffFormData($row) + [
             'breadcrumbs'=>[
                 [
                     'name'=>__("Users"),
@@ -81,6 +96,7 @@ class UserController extends AdminController
         $data = [
             'row'   => $row,
             'roles' => Role::all(),
+        ] + $this->staffFormData($row) + [
             'breadcrumbs'=>[
                 [
                     'name'=>__("Users"),
@@ -197,6 +213,20 @@ class UserController extends AdminController
         $request->validate($rules,[
             'business_name.required'=>__("Display name is a required field")
         ]);
+        // Company staff always belong to one company: pick it here, or the account would have no access at all.
+        $staffRoleId = (int) \Illuminate\Support\Facades\DB::table('core_roles')->where('code', 'vendor_staff')->value('id');
+        $isStaff = $staffRoleId && (int) $request->input('role_id') === $staffRoleId;
+        $company = null;
+        if ($isStaff) {
+            $company = User::find((int) $request->input('company_id'));
+            if (!$company || !$company->hasPermission('dashboard_vendor_access') || \Modules\Vendor\Services\StaffAccess::membership($company)) {
+                return back()->withInput()->withErrors(['company_id' => __('Company staff must be attached to a vendor company. Choose the company they work for.')]);
+            }
+            $taken = \Modules\Vendor\Models\VendorTeam::where('member_id', $row->id ?: 0)->where('vendor_id', '!=', $company->id)->exists();
+            if ($taken && !$request->boolean('confirm_move_company')) {
+                // moving a person to another company is allowed, and simply replaces the link
+            }
+        }
 
         $data = [
             'first_name'=>$request->input('first_name'),
@@ -239,6 +269,18 @@ class UserController extends AdminController
         }
 
         if ($row->save()) {
+            if ($isStaff) {
+                $modules = array_values(array_intersect((array) $request->input('staff_modules', []), array_keys(\Modules\Vendor\Services\StaffAccess::modules()))) ?: ['bookings'];
+                \Modules\Vendor\Models\VendorTeam::where('member_id', $row->id)->where('vendor_id', '!=', $company->id)->get()->each->delete();
+                $team = \Modules\Vendor\Models\VendorTeam::where('member_id', $row->id)->where('vendor_id', $company->id)->first() ?: new \Modules\Vendor\Models\VendorTeam();
+                $team->member_id = $row->id;
+                $team->vendor_id = $company->id;
+                $team->status = \Modules\Vendor\Models\VendorTeam::STATUS_PUBLISH;
+                $team->permissions = $modules;
+                $team->save();
+            } else {
+                \Modules\Vendor\Models\VendorTeam::where('member_id', $row->id)->get()->each->delete();   // no longer staff: no longer attached
+            }
             return back()->with('success', ($id and $id>0) ? __('User updated'):__("User created"));
         }
     }

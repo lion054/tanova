@@ -4,7 +4,8 @@
  * Who may open which part of the portal. One list, read by App\Http\Middleware\AreaGuard and checked by tests/Feature/AreaAccessTest.php,
  * so a new screen cannot ship without someone deciding who it is for.
  *
- *   staff    the platform's own team.         permission: dashboard_access
+ *   staff    the platform itself: the super admin (and any platform team the super admin creates). permission: dashboard_access.
+ *            Employees of a vendor company are NOT this: they are company staff (config/staff_access.php) and never enter it.
  *   vendor   a business running on the portal. permission: dashboard_vendor_access
  *   account  any signed-in person (profile, own bookings, wallet, security).
  *

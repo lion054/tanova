@@ -76,8 +76,16 @@ foreach (\Custom\ServiceProvider::getModules() as $module) {
 // ── 3. Permission filtering + active state ─────────────────────────────
 $currentUrl = url(\Illuminate\Support\Facades\Route::current()->uri());
 
+// Company staff (see ActAsCompany) only see what the owner gave them.
+$staffTeam = request()->attributes->get('staff_team');
+$staffMay  = fn ($url) => !$staffTeam || \Modules\Vendor\Services\StaffAccess::allows((array) $staffTeam->permissions, (string) parse_url((string) $url, PHP_URL_PATH));
+
 foreach ($menus as $k => $item) {
     if (!empty($item['permission']) && !Auth::user()->hasPermission($item['permission'])) {
+        unset($menus[$k]);
+        continue;
+    }
+    if ($staffTeam && $k !== 'admin' && !empty($item['url']) && !$staffMay($item['url'])) {
         unset($menus[$k]);
         continue;
     }
@@ -85,7 +93,7 @@ foreach ($menus as $k => $item) {
     if (!empty($item['children'])) {
         $menus[$k]['class'] .= ' has-children';
         foreach ($item['children'] as $k2 => $child) {
-            if (!empty($child['permission']) && !Auth::user()->hasPermission($child['permission'])) {
+            if ((!empty($child['permission']) && !Auth::user()->hasPermission($child['permission'])) || ($staffTeam && !empty($child['url']) && !$staffMay($child['url']))) {
                 unset($menus[$k]['children'][$k2]);
                 continue;
             }
@@ -151,7 +159,7 @@ foreach ($menus as $key => $item) {
         $overflow[] = $item;
     }
 }
-$adminItem = $menus['admin'] ?? null;
+$adminItem = $staffTeam ? null : ($menus['admin'] ?? null);
 
 // ── 5. Helper: clean icon class (strip legacy 'icon ' prefix) ──────────
 if (!function_exists('tsoka_icon')) {

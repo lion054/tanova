@@ -238,11 +238,15 @@
             $isVendor = $user && $user->hasPermission('dashboard_vendor_access');
             $isStaff  = $user && $user->hasPermission('dashboard_access');
         @endphp
+        @php
+            $hTeam = request()->attributes->get('staff_team') ?: ($user ? \Modules\Vendor\Services\StaffAccess::membership(\Illuminate\Support\Facades\Auth::user()) : null);
+            $hMay  = fn ($p) => !$hTeam || \Modules\Vendor\Services\StaffAccess::allows((array) $hTeam->permissions, $p);
+        @endphp
         @if($isVendor)
-            <a href="{{ route('user.integrations.index', [], false) ?? '#' }}">Integrations</a>
-            <a href="{{ route('user.concierge.index', [], false) ?? '#' }}">Concierge</a>
-            <a href="{{ route('admin.tanova.index', [], false) ?? '#' }}">Tanova</a>
-            <a href="{{ route('tourpay.vendor.index', [], false) ?? '#' }}">TourPay</a>
+            @if($hMay('user/integrations'))<a href="{{ route('user.integrations.index', [], false) ?? '#' }}">Integrations</a>@endif
+            @if($hMay('user/concierge'))<a href="{{ route('user.concierge.index', [], false) ?? '#' }}">Concierge</a>@endif
+            @if($hMay('user/tanova'))<a href="{{ route('admin.tanova.index', [], false) ?? '#' }}">Tanova</a>@endif
+            @if($hMay('user/tourpay'))<a href="{{ route('tourpay.vendor.index', [], false) ?? '#' }}">TourPay</a>@endif
         @elseif($isStaff)
             <a href="{{ route('admin.integrations.hub', [], false) ?? '#' }}">Integrations</a>
         @endif
