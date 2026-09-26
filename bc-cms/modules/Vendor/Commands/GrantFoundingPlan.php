@@ -39,6 +39,10 @@ class GrantFoundingPlan extends Command
                 $this->line("#{$u->id} {$u->email}: on a trial, skipped");
                 continue;
             }
+            if ((int) $u->vendor_plan_id === (int) $plan->id && $u->vendor_plan_expires_at && \Carbon\Carbon::parse($u->vendor_plan_expires_at)->gte($until)) {
+                $this->line("#{$u->id} {$u->email}: already has {$plan->name} beyond that date, left as it is");
+                continue;   // never shorten what someone already has
+            }
             $this->info("#{$u->id} " . ($u->business_name ?: $u->email) . ": {$plan->name} until " . $until->toDateString());
             $n++;
             if ($this->option('dry-run')) {
