@@ -113,6 +113,12 @@ class VendorServiceController extends Controller
         if ($collection->isEmpty()) {
             return;
         }
+        \App\Support\ApiLanguage::models('hotel', $collection);   // the asked-for language's text (?lang=fr), and which languages exist
+        foreach ($collection as $h) {
+            if ($h->relationLoaded('rooms')) {
+                \App\Support\ApiLanguage::models('room', $h->rooms);
+            }
+        }
 
         $ids = collect();
         foreach ($collection as $h) {
@@ -261,6 +267,7 @@ class VendorServiceController extends Controller
         if ($collection->isEmpty()) {
             return;
         }
+        \App\Support\ApiLanguage::models('tour', $collection);
 
         // Collect every referenced media id (main image + gallery) in one query.
         $ids = collect();
@@ -376,12 +383,15 @@ class VendorServiceController extends Controller
             ->tap(fn ($q) => $this->narrow($q, $request))
             ->paginate(min($request->integer('per_page', 15), 100));
 
+        \App\Support\ApiLanguage::models('car', $cars->getCollection());
+
         return response()->json(['data' => $cars]);
     }
 
     public function showCar(int $id): JsonResponse
     {
         $car = Car::forVendor()->with(['translation'])->findOrFail($id);
+        \App\Support\ApiLanguage::models('car', collect([$car]));
         return response()->json(['data' => $car]);
     }
 
@@ -395,12 +405,15 @@ class VendorServiceController extends Controller
             ->tap(fn ($q) => $this->narrow($q, $request))
             ->paginate(min($request->integer('per_page', 15), 100));
 
+        \App\Support\ApiLanguage::models('boat', $boats->getCollection());
+
         return response()->json(['data' => $boats]);
     }
 
     public function showBoat(int $id): JsonResponse
     {
         $boat = Boat::forVendor()->with(['translation'])->findOrFail($id);
+        \App\Support\ApiLanguage::models('boat', collect([$boat]));
         return response()->json(['data' => $boat]);
     }
 
@@ -414,12 +427,15 @@ class VendorServiceController extends Controller
             ->tap(fn ($q) => $this->narrow($q, $request))
             ->paginate(min($request->integer('per_page', 15), 100));
 
+        \App\Support\ApiLanguage::models('event', $events->getCollection());
+
         return response()->json(['data' => $events]);
     }
 
     public function showEvent(int $id): JsonResponse
     {
         $event = Event::forVendor()->with(['translation'])->findOrFail($id);
+        \App\Support\ApiLanguage::models('event', collect([$event]));
         return response()->json(['data' => $event]);
     }
 }

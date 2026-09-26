@@ -23,7 +23,10 @@ class LanguageController extends FrontendController
         $this->setLocale($locale, $request);
 
         if(empty($path)){
-            return redirect('/');
+            // Stay on the page the person was reading (a service, a portal screen); only go home when there is no page to return to.
+            $back = url()->previous();
+            $same = $back === $request->fullUrl() || str_contains($back, '/language/set-lang/');
+            return redirect($same || empty($back) ? '/' : $back);
         }
 
         if(strpos($path,$oldLocale) === 0){

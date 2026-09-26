@@ -53,6 +53,16 @@ class FrontendGuard
         // The link a customer opens to tell the vendor who is travelling.
         'guest-form/*',
         'gateway/*',
+
+        // The public page of a published service, and only what its booking box needs: the availability calendar, adding to a
+        // booking, and an enquiry. (`hotel` and `tour` themselves, the search lists, stay behind the login.) A draft is a 404
+        // for everyone except its owner (see BaseModel::hasPermissionDetailView), and these are rate limited below.
+        'hotel/*', 'tour/*', 'space/*', 'car/*', 'boat/*', 'event/*',
+        'booking/addToCart',
+        'booking/addEnquiry',
+        'user/hotel/availability/loadDates', 'user/tour/availability/loadDates', 'user/space/availability/loadDates',
+        'user/car/availability/loadDates', 'user/boat/availability/loadDates', 'user/event/availability/loadDates',
+        'language/set-lang/*',
     ];
 
     // Routes allowed for authenticated users (portal + service browsing)
@@ -116,6 +126,9 @@ class FrontendGuard
         if (!Auth::check()) {
             foreach ($this->guestAllowed as $pattern) {
                 if ($request->is($pattern)) {
+                    if ($this->isPublicService($request) && $this->tooManyPublicHits($request)) {
+                        abort(429, 'Too many requests. Please slow down.');
+                    }
                     return $next($request);
                 }
             }
@@ -130,5 +143,24 @@ class FrontendGuard
         }
 
         return redirect('/admin');
+    }
+
+    /** The service pages and the calls their booking box makes. */
+    private function isPublicService(Request $request): bool
+    {
+        return $request->is('hotel/*', 'tour/*', 'space/*', 'car/*', 'boat/*', 'event/*', 'booking/addToCart', 'booking/addEnquiry', 'user/*/availability/loadDates');
+    }
+
+    /** A guest may open pages freely but not hammer them or the booking endpoints: 240 reads and 30 writes a minute per address. */
+    private function tooManyPublicHits(Request $request): bool
+    {
+        $write = !$request->isMethodSafe();
+        $key = 'public-service:' . ($write ? 'w:' : 'r:') . $request->ip();
+        $limit = \Illuminate\Support\Facades\RateLimiter::tooManyAttempts($key, $write ? 30 : 240);
+        if (!$limit) {
+            \Illuminate\Support\Facades\RateLimiter::hit($key, 60);
+        }
+
+        return $limit;
     }
 }

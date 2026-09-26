@@ -24,6 +24,7 @@
                         'vendor_signup_requires_approval',
                         'vendor_signup_trial_days',
                         'vendor_signup_plan_id',
+                        'vendor_plan_payment_instructions',
                         'vendor_role',
                         'vendor_show_email',
                         'vendor_show_phone',

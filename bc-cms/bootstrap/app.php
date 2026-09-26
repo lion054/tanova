@@ -32,6 +32,7 @@ return Application::configure(basePath: dirname(__DIR__))
             \App\Http\Middleware\EnforcePlanOnCreate::class,
             \App\Http\Middleware\RedirectForMultiLanguage::class,
             \App\Http\Middleware\SetLanguageForAdmin::class,
+            \App\Http\Middleware\PublicServiceLocale::class,
             \App\Http\Middleware\SetCurrentCurrency::class,
             \App\Http\Middleware\RequireChangePassword::class,
         ]);

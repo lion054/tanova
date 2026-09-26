@@ -242,7 +242,15 @@ class BaseModel extends Model
         if($this->status == "publish"){
             return true;
         }
+        // A draft is for its owner (and the owner's staff, who act as the company) and the platform team, nobody else.
         if(Auth::id() and $this->author_id == Auth::id() and Auth::user()->hasPermission('dashboard_vendor_access')){
+            return true;
+        }
+        if(Auth::id() and Auth::user()->hasPermission('dashboard_access')){
+            return true;
+        }
+        // The owner's staff (public pages are outside the portal, so they are still themselves here).
+        if(Auth::id() and ($team = \Modules\Vendor\Services\StaffAccess::membership(Auth::user())) and (int) $team->vendor_id === (int) $this->author_id){
             return true;
         }
         return false;

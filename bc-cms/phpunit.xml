@@ -10,7 +10,9 @@
         </testsuite>
 
         <testsuite name="Feature">
-            <directory suffix="Test.php">./tests/Feature</directory>
+            <!-- Only the tests that work in their own copy of the database. The older ones in tests/Feature run migrate:fresh
+                 (see tests/TestCase.php, which now skips them unless the database is a *_test one). -->
+            <directory suffix="Test.php">./tests/Feature/Api</directory>
         </testsuite>
     </testsuites>
     <coverage processUncoveredFiles="true">

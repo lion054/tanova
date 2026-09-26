@@ -17,6 +17,11 @@ Route::group(['prefix'=>'subscription'],function(){
     Route::post('/assign','SubscriptionController@doAssign')->name('vendor.admin.subscription.doAssign');
     Route::post('/cancel/{id}','SubscriptionController@cancel')->name('vendor.admin.subscription.cancel');
 });
+Route::group(['prefix'=>'plan-orders'],function(){
+    Route::get('/','PlanOrderController@index')->name('vendor.admin.plan_orders.index');
+    Route::post('/{id}/confirm','PlanOrderController@confirm')->name('vendor.admin.plan_orders.confirm');
+    Route::post('/{id}/cancel','PlanOrderController@cancel')->name('vendor.admin.plan_orders.cancel');
+});
 Route::group(['prefix'=>'api-keys'],function(){
     Route::get('/','ApiKeyController@index')->name('vendor.admin.api-keys.index');
     Route::get('/{id}','ApiKeyController@show')->name('vendor.admin.api-keys.show');

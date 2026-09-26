@@ -52,6 +52,7 @@ class AppCatalogue
                 'lng'  => $loc->map_lng !== null ? (float) $loc->map_lng : null,
             ],
             'generated_at' => now()->toIso8601String(),
+            'language' => \App\Support\ApiLanguage::requested() ?: \App\Support\ApiLanguage::defaultLocale(),
         ];
 
         if ($want('activities') || $want('packages')) {
@@ -64,6 +65,7 @@ class AppCatalogue
                 ->orderByDesc('is_featured')
                 ->orderBy('id')
                 ->get();
+            \App\Support\ApiLanguage::objects('tour', $tours);   // the asked-for language (?lang= or Accept-Language)
             $this->loadPaths($tours->flatMap(fn ($t) => array_merge([$t->image_id], $this->ids($t->gallery)))->all());
 
             $items = $tours->map(fn ($t) => $this->tour($t, $loc))->values();
@@ -85,11 +87,13 @@ class AppCatalogue
                 ->orderByDesc('is_featured')
                 ->orderBy('id')
                 ->get();
+            \App\Support\ApiLanguage::objects('hotel', $hotels);
             $this->loadPaths($hotels->flatMap(fn ($h) => array_merge([$h->image_id], $this->ids($h->gallery)))->all());
             $rooms = DB::table('bc_hotel_rooms')
                 ->whereIn('parent_id', $hotels->pluck('id'))
-                ->get()
-                ->groupBy('parent_id');
+                ->get();
+            \App\Support\ApiLanguage::objects('room', $rooms);
+            $rooms = $rooms->groupBy('parent_id');
             $out['stays'] = $hotels->map(fn ($h) => $this->hotel($h, $loc, $rooms->get($h->id, collect())))->values()->all();
         }
 

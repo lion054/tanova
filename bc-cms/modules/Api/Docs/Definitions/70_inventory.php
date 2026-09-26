@@ -11,6 +11,7 @@ $types = ['tour', 'hotel', 'car', 'boat', 'space', 'event', 'flight', 'visa'];
 Doc::schema('Listing', S::obj([
     'type' => S::enum($types, 'The kind of listing.', 'tour'),
     'id' => S::int('', 123), 'title' => S::str('', 'Tandem Gorge Swing'),
+    'language' => S::str('The language the title is in.', 'en'), 'available_languages' => S::arr(S::str(), 'The other languages this listing has text in.'),
     'status' => S::enum(['publish', 'draft', 'pending'], '`publish`: offered. `draft`: hidden. `pending`: awaiting review.'),
     'price' => S::nullable(S::num('Base price. Null for types that have none (boats, flights).', 200)),
     'location' => S::nullable(S::obj(['id' => S::int('', 7), 'name' => S::nullable(S::str('', 'Victoria Falls'))])),
@@ -29,6 +30,7 @@ Doc::op('GET', '/services')->tag('Listings')->scope('services:read')
         P::enum('status', ['publish', 'draft', 'pending'], 'Only this status.'),
         P::int('location_id', 'Only listings in this place. Types with no place are left out.', ['example' => 7]),
         P::enum('deleted', ['only'], '`only`: show the recovery bin instead.'),
+        P::str('lang', 'Show titles in this language where translated, e.g. `fr`. Also read from `Accept-Language`.', ['example' => 'fr']),
         P::sort(['newest' => 'newest first', 'oldest' => 'oldest first', 'title' => 'name A to Z', 'title_desc' => 'name Z to A', 'updated' => 'recently updated', 'price_asc' => 'price, low to high', 'price_desc' => 'price, high to low'], 'newest'),
         ...P::paging(),
     ])
@@ -37,6 +39,7 @@ Doc::op('GET', '/services')->tag('Listings')->scope('services:read')
 Doc::op('GET', '/services/{type}/{id}')->tag('Listings')->scope('services:read')
     ->summary('Get one listing, compactly')
     ->path(['type' => ['string', 'One of: ' . implode(', ', $types) . '.']])
+    ->query([P::str('lang', 'Show the title in this language where translated, e.g. `fr`.', ['example' => 'fr'])])
     ->description('The same compact shape as the list, for any type, including types that have no endpoint of their own (spaces, flights, visas).')
     ->returns(200, S::one('Listing'));
 

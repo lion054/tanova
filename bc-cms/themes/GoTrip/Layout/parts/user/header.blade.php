@@ -2,6 +2,7 @@
     $user = Auth::user();
     $theme = \Modules\Theme\ThemeManager::currentProvider();
     $languages = \Modules\Language\Models\Language::getActive();
+    $languages = collect($languages)->unique('locale')->values();
     $locale = App::getLocale();
 @endphp
 
@@ -17,22 +18,15 @@
         display: flex;
         align-items: center;
         z-index: 10000;
-        padding: 0 20px 0 0;
-        gap: 0;
+        padding: 0 20px 0 264px;   /* clears the fixed sidebar; the sidebar's own rules narrow this for the rail and drop it on phones */
+        gap: 8px;
+        transition: padding-left .26s cubic-bezier(.4,0,.2,1);
     }
     .bc_wrap .header-margin { margin-top: 56px !important; }
 
     /* Logo area */
-    .ph-logo {
-        width: 220px;
-        min-width: 220px;
-        display: flex;
-        align-items: center;
-        padding: 0 20px;
-        flex-shrink: 0;
-        border-right: 1px solid #e8e8e8;
-        height: 100%;
-    }
+    .ph-logo { display: none; align-items: center; padding: 0 14px; flex-shrink: 0; height: 100%; }
+    @media (max-width: 991px) { .ph-logo { display: flex; } }
     .ph-logo a {
         display: flex;
         align-items: center;
@@ -120,14 +114,28 @@
         height: 36px;
         border: none;
         background: transparent;
-        border-radius: 4px;
-        color: #a0a0a0;
-        font-size: 20px;
+        border-radius: 8px;
+        color: #5a5a5a;
         cursor: pointer;
         transition: background .12s, color .12s;
-        margin-left: 4px;
+        margin-left: 0;
     }
-    .ph-toggle:hover { background: #f5f5f5; color: #0a0a0a; }
+    .ph-toggle:hover { background: #f0f0f0; color: #0a0a0a; }
+    .ph-toggle svg { width: 20px; height: 20px; }
+    .ph-ic { width: 14px; height: 14px; flex-shrink: 0; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+    .ph-caret { width: 12px; height: 12px; stroke: #a0a0a0; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+    /* Plan chip: where the company stands, one click from the plan page */
+    .ph-plan { display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border: 1px solid #e3e3e3; border-radius: 999px; font-size: 12px; color: #0a0a0a !important; text-decoration: none !important; white-space: nowrap; transition: border-color .12s, background .12s; }
+    .ph-plan:hover { border-color: #0a0a0a; background: #fafafa; }
+    .ph-plan b { font-weight: 700; }
+    .ph-plan span { color: #6b6b6b; }
+    .ph-plan.is-warn { border-color: #E0A23B; background: #fffaf0; }
+    .ph-plan.is-warn span { color: #8a5d10; }
+    .ph-plan.is-alert { border-color: #e11d48; background: #fff1f2; }
+    .ph-plan.is-alert span { color: #e11d48; }
+    @media (max-width: 575px) { .ph-plan span, .ph-dd-who, .ph-lang-trigger .ph-caret, .ph-dd-trigger .ph-caret { display: none; } .ph-plan { padding: 0 10px; } .ph-lang-trigger, .ph-dd-trigger { padding: 6px; } .main-header { gap: 4px; } }
+    @media (max-width: 991px) { .main-header { padding-right: 10px; } }
 
     /* Dropdown */
     .ph-dd { position: relative; }
@@ -192,12 +200,12 @@
         align-items: center;
         gap: 10px;
         padding: 8px 14px;
-        font-size: 12px;
+        font-size: 13px;
         color: #222222;
         text-decoration: none;
         transition: background .1s;
     }
-    .ph-menu a i { width: 14px; color: #a0a0a0; font-size: 12px; }
+    .ph-menu a .ph-ic { color: #9a9a9a; }
     .ph-menu a:hover { background: #f5f5f5; color: #0a0a0a; }
     .ph-menu-sep { height: 1px; background: #e8e8e8; margin: 4px 0; }
 
@@ -228,8 +236,8 @@
     </div>
 
     {{-- Toggle sidebar on mobile --}}
-    <button class="ph-toggle btn-toggle-admin-menu" data-x-click="dashboard" aria-label="Menu">
-        <i class="ion-ios-menu"></i>
+    <button class="ph-toggle" type="button" onclick="tnvNavToggle()" aria-label="{{ __('Menu') }}" title="{{ __('Menu') }}">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
     </button>
 
     {{-- Centre nav --}}
@@ -242,12 +250,8 @@
             $hTeam = request()->attributes->get('staff_team') ?: ($user ? \Modules\Vendor\Services\StaffAccess::membership(\Illuminate\Support\Facades\Auth::user()) : null);
             $hMay  = fn ($p) => !$hTeam || \Modules\Vendor\Services\StaffAccess::allows((array) $hTeam->permissions, $p);
         @endphp
-        @if($isVendor)
-            @if($hMay('user/integrations'))<a href="{{ route('user.integrations.index', [], false) ?? '#' }}">Integrations</a>@endif
-            @if($hMay('user/concierge'))<a href="{{ route('user.concierge.index', [], false) ?? '#' }}">Concierge</a>@endif
-            @if($hMay('user/tanova'))<a href="{{ route('admin.tanova.index', [], false) ?? '#' }}">Tanova</a>@endif
-            @if($hMay('user/tourpay'))<a href="{{ route('tourpay.vendor.index', [], false) ?? '#' }}">TourPay</a>@endif
-        @elseif($isStaff)
+        {{-- A company's own pages (Tanova AI, Concierge, TourPay, Integrations) are in its sidebar; the top bar keeps only the platform link. --}}
+        @if(!$isVendor && $isStaff)
             <a href="{{ route('admin.integrations.hub', [], false) ?? '#' }}">Integrations</a>
         @endif
         @if($isStaff)
@@ -259,23 +263,27 @@
     {{-- Right side --}}
     <div class="ph-right">
 
+        {{-- The plan (owners only: staff cannot open it) --}}
+        @if($isVendor && !$isStaff && !$hTeam && is_enable_plan())
+            @php $pc = \Modules\Vendor\Services\PlanLimits::state($user); @endphp
+            <a class="ph-plan {{ in_array($pc['state'], ['none', 'expired']) ? 'is-alert' : ($pc['state'] === 'expiring' ? 'is-warn' : '') }}" href="{{ route('vendor.subscription.index') }}" title="{{ __('Plan & billing') }}">
+                <b>{{ $pc['plan'] ?: __('No plan') }}</b>
+                <span>@if($pc['state'] === 'none'){{ __('Choose a plan') }}@elseif($pc['state'] === 'expired'){{ __('Ended: renew') }}@elseif($pc['state'] === 'ok' && ($pc['days'] ?? 99) > 14){{ __('Active') }}@else{{ trans_choice(':n day left|:n days left', max(0, (int) $pc['days']), ['n' => max(0, (int) $pc['days'])]) }}@endif</span>
+            </a>
+        @endif
+
         {{-- Language picker --}}
         @if(!empty($languages) && is_enable_multi_lang())
         <div class="ph-dd" id="ph-lang-dd">
             <div class="ph-lang-trigger" onclick="phToggle('ph-lang-dd')">
-                @foreach($languages as $language)
-                    @if($locale == $language->locale)
-                        @if($language->flag)<span class="flag-icon flag-icon-{{ $language->flag }}"></span>@endif
-                        {{ $language->name }}
-                    @endif
-                @endforeach
-                <i class="fa fa-angle-down ph-dd-caret"></i>
+                <svg class="ph-ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.6 2.6 3.9 5.6 3.9 9s-1.3 6.4-3.9 9c-2.6-2.6-3.9-5.6-3.9-9S9.4 5.6 12 3z"/></svg>
+                {{ optional($languages->firstWhere('locale', $locale))->name }}
+                <svg class="ph-caret" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
             </div>
             <div class="ph-menu" id="ph-lang-dd-menu">
                 @foreach($languages as $language)
                     @php if($language->locale == $locale) continue; @endphp
                     <a href="{{ route('language.set-lang', ['locale' => $language->locale]) }}">
-                        @if($language->flag)<span class="flag-icon flag-icon-{{ $language->flag }}"></span>@endif
                         {{ $language->name }}
                     </a>
                 @endforeach
@@ -294,27 +302,27 @@
                         {{ strtoupper($user->getDisplayName()[0]) }}
                     @endif
                 </div>
-                <div>
+                <div class="ph-dd-who">
                     <div class="ph-dd-name">{{ $user->getDisplayName() }}</div>
-                    <div class="ph-dd-role">{{ ucfirst($user->role->name ?? '') }}</div>
+                    <div class="ph-dd-role">{{ $hTeam ? __('Staff') : ucfirst($user->role->name ?? '') }}</div>
                 </div>
-                <i class="fa fa-angle-down ph-dd-caret"></i>
+                <svg class="ph-caret" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"/></svg>
             </div>
             <div class="ph-menu" id="ph-user-dd-menu">
                 @if($user->hasPermission('dashboard_vendor_access'))
-                    <a href="{{ route('vendor.dashboard') }}"><i class="fa fa-line-chart"></i> {{ __('Vendor Dashboard') }}</a>
+                    <a href="{{ route('vendor.dashboard') }}"><svg class="ph-ic" viewBox="0 0 24 24"><path d="M4 19V5M4 19h16M8 15l3-4 3 3 5-7"/></svg> {{ __('Vendor Dashboard') }}</a>
                     <div class="ph-menu-sep"></div>
                 @endif
-                <a href="{{ route('user.profile.index') }}"><i class="fa fa-address-card"></i> {{ __('My Profile') }}</a>
-                <a href="{{ route('user.booking_history') }}"><i class="fa fa-clock-o"></i> {{ __('Booking History') }}</a>
-                <a href="{{ route('user.change_password') }}"><i class="fa fa-lock"></i> {{ __('Change Password') }}</a>
+                <a href="{{ route('user.profile.index') }}"><svg class="ph-ic" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c1-4 4-5.5 7-5.5s6 1.5 7 5.5"/></svg> {{ __('My Profile') }}</a>
+                <a href="{{ route('user.booking_history') }}"><svg class="ph-ic" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> {{ __('Booking History') }}</a>
+                <a href="{{ route('user.change_password') }}"><svg class="ph-ic" viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 018 0v3"/></svg> {{ __('Change Password') }}</a>
                 @if($user->hasPermission('dashboard_access'))
                     <div class="ph-menu-sep"></div>
-                    <a href="{{ route('admin.index') }}"><i class="fa fa-dashboard"></i> {{ __('Admin Dashboard') }}</a>
+                    <a href="{{ route('admin.index') }}"><svg class="ph-ic" viewBox="0 0 24 24"><path d="M4 13a8 8 0 0116 0M12 13l4-4"/><path d="M4 13h2M18 13h2"/></svg> {{ __('Admin Dashboard') }}</a>
                 @endif
                 <div class="ph-menu-sep"></div>
                 <a href="#" onclick="event.preventDefault();document.getElementById('ph-logout-form').submit();">
-                    <i class="fa fa-sign-out"></i> {{ __('Logout') }}
+                    <svg class="ph-ic" viewBox="0 0 24 24"><path d="M9 4H5v16h4M16 8l4 4-4 4M20 12H9"/></svg> {{ __('Logout') }}
                 </a>
             </div>
             <form id="ph-logout-form" action="{{ route('logout') }}" method="POST" style="display:none;">{{ csrf_field() }}</form>

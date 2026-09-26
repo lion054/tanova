@@ -81,6 +81,30 @@
         letter-spacing:.03em; color:#fff; cursor:pointer; transition:background .15s;
     }
     .btn-next:hover { background:var(--g800); }
+
+    /* Step 3: OS and plan cards */
+    .os-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .os-card, .plan-card { cursor:pointer; display:block; position:relative; }
+    .os-card input, .plan-card input { position:absolute; opacity:0; pointer-events:none; }
+    .os-card-body { display:flex; gap:10px; align-items:flex-start; border:1px solid var(--g200); border-radius:6px; padding:10px 12px; height:100%; transition:all .15s; }
+    .os-card-body i { font-size:20px; color:var(--g400); margin-top:2px; }
+    .os-card-body b { display:block; font-size:13px; color:var(--black); }
+    .os-card-body em { display:block; font-style:normal; font-size:11px; color:var(--g400); line-height:1.35; margin-top:2px; }
+    .os-card input:checked + .os-card-body { border-color:var(--black); box-shadow:inset 0 0 0 1px var(--black); }
+    .os-card input:checked + .os-card-body i { color:var(--black); }
+    .os-card.is-off { opacity:.4; }
+    .plan-grid { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+    .plan-card-body { display:flex; flex-direction:column; gap:3px; border:1px solid var(--g200); border-radius:6px; padding:12px; height:100%; transition:all .15s; }
+    .plan-card input:checked + .plan-card-body { border-color:var(--black); box-shadow:inset 0 0 0 1px var(--black); }
+    .plan-name { font-size:14px; font-weight:600; color:var(--black); }
+    .plan-pop { font-style:normal; font-size:9px; letter-spacing:.08em; text-transform:uppercase; border:1px solid #E0A23B; color:#b07d1e; border-radius:3px; padding:1px 4px; margin-left:4px; vertical-align:middle; }
+    .plan-price { font-family:'DM Serif Display',Georgia,serif; font-size:24px; color:var(--black); }
+    .plan-price small { font-family:'Inter',sans-serif; font-size:11px; color:var(--g400); margin-left:2px; }
+    .plan-line { font-size:11.5px; color:var(--g600); line-height:1.35; }
+    .plan-rec { display:none; font-style:normal; font-size:10px; font-weight:600; letter-spacing:.06em; text-transform:uppercase; color:#b07d1e; margin-top:4px; }
+    .plan-card.is-rec .plan-rec { display:block; }
+    .plan-card.is-short .plan-card-body { opacity:.5; }
+    @media (max-width:520px) { .os-grid, .plan-grid { grid-template-columns:1fr; } }
 </style>
 
 <div class="form-heading" style="margin-bottom:8px;">
@@ -99,6 +123,8 @@
     <div class="step-dot" id="dot-2">2</div>
     <div class="step-line" id="line-2"></div>
     <div class="step-dot" id="dot-3">3</div>
+    <div class="step-line" id="line-3"></div>
+    <div class="step-dot" id="dot-4">4</div>
 </div>
 
 <form method="POST" action="{{ route('auth.register.store') }}" class="bc-form-register" id="reg-form">
@@ -107,7 +133,7 @@
 
     {{-- ── Step 1: Personal ─────────────────────────────── --}}
     <div class="reg-step active" id="step-1">
-        <p class="step-label">Step 1 of 3</p>
+        <p class="step-label">Step 1 of 4</p>
         <p class="step-title">{{ __('About you (the company owner)') }}</p>
 
         <div class="field-row">
@@ -142,7 +168,7 @@
 
     {{-- ── Step 2: Property / Business ──────────────────── --}}
     <div class="reg-step" id="step-2">
-        <p class="step-label">Step 2 of 3</p>
+        <p class="step-label">Step 2 of 4</p>
         <p class="step-title">{{ __('Your company') }}</p>
 
         <div class="field">
@@ -178,9 +204,60 @@
         </div>
     </div>
 
-    {{-- ── Step 3: Security ─────────────────────────────── --}}
+    {{-- ── Step 3: What you offer and the plan ───────────── --}}
+    @php
+        $osList = \Modules\Vendor\Services\CompanyOs::all();
+        $plans  = \Modules\Vendor\Models\VendorPlan::offered();
+        $trialDays = (int) (setting_item('vendor_signup_trial_days', 30) ?: 0);
+    @endphp
     <div class="reg-step" id="step-3">
-        <p class="step-label">Step 3 of 3</p>
+        <p class="step-label">Step 3 of 4</p>
+        <p class="step-title">{{ __('What does your company offer?') }}</p>
+        <p class="field-hint" style="margin:-14px 0 14px;">{{ __('Pick every kind of business you run. Your plan decides how many you can have; you can add more later.') }}</p>
+
+        <div class="os-grid">
+            @foreach($osList as $key => $os)
+                <label class="os-card">
+                    <input type="checkbox" name="os[]" value="{{ $key }}" {{ in_array($key, (array) old('os', [])) ? 'checked' : '' }}>
+                    <span class="os-card-body">
+                        <i class="{{ $os['icon'] }}"></i>
+                        <span><b>{{ $os['name'] }}</b><em>{{ __($os['tagline']) }}</em></span>
+                    </span>
+                </label>
+            @endforeach
+        </div>
+        <span class="error error-os" style="color:#c0392b;font-size:12px;display:block;margin-top:6px;"></span>
+
+        <p class="step-title" style="margin:22px 0 4px;font-size:18px;">{{ __('Choose your plan') }}</p>
+        <p class="field-hint" style="margin:0 0 12px;">
+            @if($trialDays){{ __(':d days free, no card needed. You only pay if you keep going.', ['d' => $trialDays]) }}@else{{ __('Prices in US dollars per month.') }}@endif
+        </p>
+        <div class="plan-grid">
+            @foreach($plans as $plan)
+                <label class="plan-card" data-limit="{{ (int) $plan->os_limit }}" data-price="{{ $plan->price }}">
+                    <input type="radio" name="plan_id" value="{{ $plan->id }}" {{ (int) old('plan_id') === (int) $plan->id ? 'checked' : '' }}>
+                    <span class="plan-card-body">
+                        <span class="plan-name">{{ $plan->name }} @if($plan->highlight)<i class="plan-pop">{{ __('Popular') }}</i>@endif</span>
+                        <span class="plan-price">${{ rtrim(rtrim(number_format($plan->price, 2), '0'), '.') }}<small>/{{ __('month') }}</small></span>
+                        <span class="plan-line"><b>{{ $plan->osSummary() }}</b></span>
+                        <span class="plan-line">{{ $plan->max_staff ? __(':n staff', ['n' => $plan->max_staff]) : __('Unlimited staff') }}</span>
+                        <span class="plan-line">{{ $plan->tagline }}</span>
+                        <em class="plan-rec">{{ __('Recommended for you') }}</em>
+                    </span>
+                </label>
+            @endforeach
+        </div>
+        <span class="error error-plan_id" style="color:#c0392b;font-size:12px;display:block;margin-top:6px;"></span>
+
+        <div class="step-nav">
+            <button type="button" class="btn-back" onclick="goStep(2)">← {{ __('Back') }}</button>
+            <button type="button" class="btn-next" onclick="goStep(4)">{{ __('Continue') }} →</button>
+        </div>
+    </div>
+
+    {{-- ── Step 4: Security ─────────────────────────────── --}}
+    <div class="reg-step" id="step-4">
+        <p class="step-label">Step 4 of 4</p>
         <p class="step-title">{{ __('Set Password') }}</p>
 
         <div class="field">
@@ -203,7 +280,7 @@
         <div class="error message-error" style="color:#c0392b;font-size:13px;margin-bottom:14px;"></div>
 
         <div class="step-nav">
-            <button type="button" class="btn-back" onclick="goStep(2)">← {{ __('Back') }}</button>
+            <button type="button" class="btn-back" onclick="goStep(3)">← {{ __('Back') }}</button>
             <button type="submit" class="btn-next">{{ __('Create company account') }}</button>
         </div>
     </div>
@@ -227,6 +304,20 @@ function goStep(n) {
             });
             if (!ok) return;
         }
+        if (currentN === 2 && !document.getElementById('f-business_name').value.trim()) {
+            document.getElementById('f-business_name').style.borderColor = '#c0392b';
+            return;
+        }
+        if (currentN === 3) {
+            var chosenOs = document.querySelectorAll('input[name="os[]"]:checked').length;
+            var planEl = document.querySelector('input[name="plan_id"]:checked');
+            var err = document.querySelector('.error-os'), perr = document.querySelector('.error-plan_id');
+            err.textContent = ''; perr.textContent = '';
+            if (!planEl) { perr.textContent = '{{ __("Choose a plan.") }}'; return; }
+            var lim = parseInt(planEl.closest('.plan-card').dataset.limit, 10);
+            if (lim !== 0 && chosenOs < 1) { err.textContent = '{{ __("Choose what your company offers.") }}'; return; }
+            if (lim !== 0 && chosenOs > lim) { err.textContent = '{{ __("Your plan covers fewer OS than you picked: choose a bigger plan or fewer OS.") }}'; return; }
+        }
     }
 
     // Hide current, show next
@@ -234,18 +325,40 @@ function goStep(n) {
     document.getElementById('step-'+n).classList.add('active');
 
     // Update dots
-    for (var i = 1; i <= 3; i++) {
+    for (var i = 1; i <= 4; i++) {
         var dot = document.getElementById('dot-'+i);
         dot.classList.remove('active','done');
         if (i < n)      dot.classList.add('done');
         else if (i === n) dot.classList.add('active');
     }
     // Update lines
-    for (var j = 1; j <= 2; j++) {
+    for (var j = 1; j <= 3; j++) {
         var line = document.getElementById('line-'+j);
         line.classList.toggle('done', j < n);
     }
 }
+
+// Step 3: recommend the cheapest plan that covers the OS picked; plans that cannot cover them are dimmed.
+(function () {
+    var boxes = document.querySelectorAll('input[name="os[]"]');
+    var cards = Array.prototype.slice.call(document.querySelectorAll('.plan-card'));
+    function refresh() {
+        var n = document.querySelectorAll('input[name="os[]"]:checked').length, best = null;
+        cards.forEach(function (c) {
+            var lim = parseInt(c.dataset.limit, 10), fits = n === 0 || lim === 0 || lim >= n;
+            c.classList.toggle('is-short', !fits);
+            c.classList.remove('is-rec');
+            if (n > 0 && fits && (best === null || parseFloat(c.dataset.price) < parseFloat(best.dataset.price))) best = c;
+        });
+        if (best) {
+            best.classList.add('is-rec');
+            var picked = document.querySelector('input[name="plan_id"]:checked');
+            if (!picked || picked.closest('.plan-card').classList.contains('is-short')) best.querySelector('input').checked = true;
+        }
+    }
+    boxes.forEach(function (b) { b.addEventListener('change', refresh); });
+    refresh();
+})();
 
 // AJAX submit handler
 document.getElementById('reg-form').addEventListener('submit', function(e) {

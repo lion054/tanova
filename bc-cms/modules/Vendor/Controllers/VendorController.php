@@ -81,6 +81,8 @@ class VendorController extends FrontendController
                 'error'    => true,
                 'messages' => $validator->errors()
             ], 200);
+        } elseif ($request->filled('plan_id') && ($problem = \Modules\Vendor\Services\Onboarding::checkChoice((int) $request->input('plan_id'), (array) $request->input('os', [])))) {
+            return response()->json(['error' => true, 'messages' => ['os' => [$problem]]], 200);
         } else {
             if (ReCaptchaEngine::isEnable() and setting_item("user_enable_register_recaptcha")) {
                 $codeCapcha = $request->input('g-recaptcha-response');
@@ -110,7 +112,7 @@ class VendorController extends FrontendController
             }
 
             // Same path as the portal's own sign-up: a company, on a trial (see Onboarding).
-            $onboarding = app(\Modules\Vendor\Services\Onboarding::class)->registerCompany($user);
+            $onboarding = app(\Modules\Vendor\Services\Onboarding::class)->registerCompany($user, $request->filled('plan_id') ? (int) $request->input('plan_id') : null, (array) $request->input('os', []));
             $vendorAutoApproved = $onboarding['approved'];
             Auth::loginUsingId($user->id);
             if ($vendorAutoApproved) {

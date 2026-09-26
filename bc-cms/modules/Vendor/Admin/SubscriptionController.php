@@ -81,10 +81,18 @@ class SubscriptionController extends AdminController
             'starts_at'     => 'required|date',
             'amount_paid'   => 'required|numeric|min:0',
             'notes'         => 'nullable|string|max:1000',
+            'os'            => 'nullable|array',
+            'os.*'          => 'string|max:20',
         ]);
 
         $plan    = VendorPlan::findOrFail($request->input('plan_id'));
         $vendor  = User::findOrFail($request->input('vendor_id'));
+        if (!$plan->coversAllOs() && ($problem = \Modules\Vendor\Services\CompanyOs::choose($vendor, (array) $request->input('os', []), $plan))) {
+            return back()->withInput()->withErrors(['os' => $problem]);
+        }
+        if ($plan->coversAllOs()) {
+            \Illuminate\Support\Facades\DB::table('vendor_company_os')->where('vendor_id', $vendor->id)->where('is_addon', 1)->delete();
+        }
         $startsAt = Carbon::parse($request->input('starts_at'));
         $endsAt   = $request->input('billing_cycle') === 'yearly'
             ? $startsAt->copy()->addYear()

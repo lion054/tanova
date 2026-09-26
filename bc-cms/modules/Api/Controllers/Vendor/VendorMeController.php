@@ -41,6 +41,7 @@ class VendorMeController extends Controller
                 'email'      => $vendor->email,
                 'plan'       => $vendor->vendorPlan?->name,
                 'plan_expires_at' => $vendor->vendor_plan_expires_at,
+                'os'         => collect(\Modules\Vendor\Services\CompanyOs::effective($vendor))->map(fn ($k) => ['key' => $k, 'name' => \Modules\Vendor\Services\CompanyOs::all()[$k]['name'], 'label' => \Modules\Vendor\Services\CompanyOs::all()[$k]['label']])->values(),
             ],
             'subscription' => $subscription ? [
                 'status'     => $subscription->status,

@@ -9,10 +9,12 @@ $paged = fn (string $item) => S::obj(['data' => S::obj([
     'from' => S::nullable(S::int()), 'to' => S::nullable(S::int()), 'first_page_url' => S::url(), 'last_page_url' => S::url(), 'next_page_url' => S::nullable(S::url()), 'prev_page_url' => S::nullable(S::url()), 'path' => S::url(),
 ])]);
 $legacyNote = 'The list is a framework paginator: rows are in `data.data`, and `data` also carries the paging fields. The record is the stored listing plus the website-ready fields named in its description; more fields than listed may appear.';
+$langNote = "Send `lang=fr` (or an `Accept-Language` header) to get the text in another language: title, description, FAQs, itinerary and the rest are replaced by the translation where there is one, and stay in the default language where there is not. Each record says which language its text is in (`language`) and which others it has (`available_languages`). `lang=all` keeps the default text and adds every translation under `translations`.";
+$langQ = P::str('lang', 'The language of the text, e.g. `fr`; or `all` for every language under `translations`. Also read from `Accept-Language`.', ['example' => 'fr']);
 $listQuery = fn (array $extra = []) => array_merge([
     P::q('title (or an id)'), P::enum('status', ['publish', 'draft', 'pending'], 'Only this status.'), P::int('location_id', 'Only listings in this place.'),
     P::sort(['newest' => 'newest first (default)', 'oldest' => 'oldest first', 'title' => 'name A to Z', 'title_desc' => 'name Z to A', 'updated' => 'recently updated', 'price_asc' => 'price, low to high', 'price_desc' => 'price, high to low'], 'newest'),
-], $extra, [P::page(), P::int('per_page', 'Rows per page, up to 100.', ['default' => 15])]);
+], $extra, [$langQ, P::page(), P::int('per_page', 'Rows per page, up to 100.', ['default' => 15])]);
 
 Doc::schema('TourRecord', S::obj([
     'id' => S::int('', 123), 'title' => S::str('', 'Tandem Gorge Swing'), 'slug' => S::str('', 'tandem-gorge-swing'), 'content' => S::nullable(S::str('HTML description.', '<p>...</p>')),
@@ -23,17 +25,18 @@ Doc::schema('TourRecord', S::obj([
     'hero_url' => S::nullable(S::url('Main photo, ready to display.')), 'gallery_urls' => S::arr(S::url(), 'Gallery photos.'), 'faqs_parsed' => S::arr(S::obj(['title' => S::str(), 'content' => S::str()]), 'Questions and answers.'),
     'duration_hours' => S::int('Same as `duration`.', 3), 'category_name' => S::nullable(S::str('', 'Adventure')),
     'tiers' => S::arr(S::ref('TourOption'), 'Its Classic / Signature / Sublime options, when set up.'), 'from_price' => S::nullable(S::num('The cheapest option, per person.', 106.67)),
+    'language' => S::str('The language the text is in: your default unless a translation was asked for and exists.', 'en'), 'available_languages' => S::arr(S::str(), 'The other languages this record has text in.'),
     'created_at' => S::dt(), 'updated_at' => S::dt(),
 ], ['id', 'title', 'status'], 'A tour as stored, with the website-ready fields added.'));
 Doc::schema('HotelRecord', S::obj([
     'id' => S::int('', 45), 'title' => S::str('', 'Falls Lodge'), 'slug' => S::str(), 'content' => S::nullable(S::str()), 'price' => S::str('Decimal string.', '150.00'), 'star_rate' => S::nullable(S::int('', 4)),
     'location_id' => S::nullable(S::int()), 'address' => S::nullable(S::str()), 'map_lat' => S::nullable(S::str()), 'map_lng' => S::nullable(S::str()), 'phone' => S::nullable(S::str()),
     'check_in_time' => S::nullable(S::str('', '14:00')), 'check_out_time' => S::nullable(S::str('', '10:00')), 'status' => S::enum(['publish', 'draft', 'pending']), 'image_id' => S::nullable(S::int()),
-    'hero_url' => S::nullable(S::url('Main photo, ready to display.')), 'created_at' => S::dt(), 'updated_at' => S::dt(),
+    'hero_url' => S::nullable(S::url('Main photo, ready to display.')), 'language' => S::str('The language the text is in: your default unless a translation was asked for and exists.', 'en'), 'available_languages' => S::arr(S::str(), 'The other languages this record has text in.'), 'created_at' => S::dt(), 'updated_at' => S::dt(),
 ], ['id', 'title', 'status'], 'A stay as stored, with `hero_url` added.'));
 Doc::schema('ServiceRecord', S::obj([
     'id' => S::int('', 9), 'title' => S::str('', 'Harare City Pass'), 'slug' => S::str(), 'content' => S::nullable(S::str()), 'price' => S::nullable(S::str('Decimal string. Boats have none.', '25.00')),
-    'location_id' => S::nullable(S::int()), 'status' => S::enum(['publish', 'draft', 'pending']), 'created_at' => S::dt(), 'updated_at' => S::dt(),
+    'location_id' => S::nullable(S::int()), 'status' => S::enum(['publish', 'draft', 'pending']), 'language' => S::str('The language the text is in: your default unless a translation was asked for and exists.', 'en'), 'available_languages' => S::arr(S::str(), 'The other languages this record has text in.'), 'created_at' => S::dt(), 'updated_at' => S::dt(),
 ], ['id', 'title', 'status'], 'A car, boat or event as stored. The type-specific fields (seats, gears, dates) are present too and not listed here.'));
 
 // ── Tours ────────────────────────────────────────────────────────────────────
@@ -49,7 +52,7 @@ Doc::op('GET', '/services/tours/trending')->tag('Insights')->scope('services:rea
 Doc::op('GET', '/services/tours/bestsellers')->tag('Insights')->scope('services:read')
     ->summary('Bestselling tours')->description('Your most booked tours of all time (unpaid and cancelled bookings do not count), pinned ones first. Same shape as trending.')
     ->query([P::int('limit', '1 to 30.', ['default' => 10])])->returns(200, S::obj(['data' => S::arr(['allOf' => [S::ref('TourRecord'), S::obj(['shelf' => S::obj(['reason' => S::str('', '48 trips booked'), 'pinned' => S::bool(), 'bookings_total' => S::int(), 'bookings_30d' => S::int()])])]])]));
-Doc::op('GET', '/services/tours/{id}')->tag('Listings')->scope('services:read')->summary('Get a tour (full record)')->returns(200, S::one('TourRecord'));
+Doc::op('GET', '/services/tours/{id}')->tag('Listings')->scope('services:read')->summary('Get a tour (full record)')->description($langNote)->query([$langQ])->returns(200, S::one('TourRecord'));
 
 $tourBody = [
     'title' => S::str('', 'Tandem Gorge Swing'), 'content' => S::str('HTML description.', '<p>...</p>'), 'status' => S::enum(['publish', 'draft', 'pending'], 'Default draft.', 'draft'),
@@ -75,7 +78,7 @@ Doc::op('DELETE', '/services/tours/{id}')->tag('Listings')->scope('services:writ
 
 Doc::op('GET', '/services/hotels')->tag('Listings')->scope('services:read')->legacy($legacyNote)->summary('List your stays (full records)')
     ->query($listQuery())->returns(200, $paged('HotelRecord'));
-Doc::op('GET', '/services/hotels/{id}')->tag('Listings')->scope('services:read')->summary('Get a stay')->returns(200, S::one('HotelRecord'));
+Doc::op('GET', '/services/hotels/{id}')->tag('Listings')->scope('services:read')->summary('Get a stay')->description($langNote . ' Its rooms come translated too.')->query([$langQ])->returns(200, S::one('HotelRecord'));
 $hotelBody = [
     'title' => S::str('', 'Falls Lodge'), 'content' => S::str(), 'status' => S::enum(['publish', 'draft', 'pending'], 'Default draft.', 'draft'), 'location_id' => S::int('', 6),
     'address' => S::str(), 'star_rate' => S::int('1 to 5.', 4), 'price' => S::num('', 150), 'map_lat' => S::num('', -17.92), 'map_lng' => S::num('', 25.85),
@@ -94,7 +97,7 @@ Doc::op('DELETE', '/services/hotels/{id}')->tag('Listings')->scope('services:wri
 foreach ([['cars', 'cars', 'a car'], ['boats', 'boats', 'a boat'], ['events', 'events', 'an event']] as [$seg, $plural, $one]) {
     Doc::op('GET', "/services/{$seg}")->tag('Listings')->scope('services:read')->legacy($legacyNote)->summary("List your {$plural} (full records)")
         ->query($listQuery())->returns(200, $paged('ServiceRecord'));
-    Doc::op('GET', "/services/{$seg}/{id}")->tag('Listings')->scope('services:read')->summary("Get {$one}")->returns(200, S::one('ServiceRecord'));
+    Doc::op('GET', "/services/{$seg}/{id}")->tag('Listings')->scope('services:read')->summary("Get {$one}")->description($langNote)->query([$langQ])->returns(200, S::one('ServiceRecord'));
 }
 
 // ── Availability and departures of one tour ─────────────────────────────────

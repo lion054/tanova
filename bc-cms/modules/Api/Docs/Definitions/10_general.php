@@ -9,7 +9,8 @@ Doc::op('GET', '/me')->tag('Getting started')->auth('key')
     ->summary('Who this key belongs to')
     ->description("The account, its plan and subscription, and its active keys with how much each has been used this month. A good first call to check a key works. The response header `X-Tsoka-Mode` says whether it was a `test` or `live` key.\n\nNeeds no scope: any valid key can call it.")
     ->returns(200, S::obj(['data' => S::obj([
-        'vendor' => S::obj(['id' => S::int('', 7), 'name' => S::str('', 'Luxsav'), 'email' => S::email(), 'plan' => S::nullable(S::str('', 'Enterprise Plan')), 'plan_expires_at' => S::nullable(S::str('', '2027-04-01 02:00:00'))]),
+        'vendor' => S::obj(['id' => S::int('', 7), 'name' => S::str('', 'Luxsav'), 'email' => S::email(), 'plan' => S::nullable(S::str('', 'Enterprise Plan')), 'plan_expires_at' => S::nullable(S::str('', '2027-04-01 02:00:00')),
+            'os' => S::arr(S::obj(['key' => S::str('The Tanova OS: stay, exp, trans, event, airline or visa.', 'stay'), 'name' => S::str('', 'Stay OS'), 'label' => S::str('', 'Stays')]), 'The kinds of business this company operates, so its own website can show the same badges. Which listing types you can create follows from these.')]),
         'subscription' => S::nullable(S::obj(['status' => S::str('', 'active'), 'ends_at' => S::nullable(S::dt()), 'plan' => S::nullable(S::str()), 'billing_cycle' => S::nullable(S::str())])),
         'api_keys' => S::arr(S::obj(['id' => S::int('', 3), 'name' => S::str('', 'Website (read-only)'), 'rate_limit' => S::int('The requests this key may make per calendar year (0 = unlimited; test keys are never capped).', 100000), 'used_this_month' => S::int('', 5400), 'last_used_at' => S::nullable(S::dt())])),
     ])]));
@@ -34,6 +35,7 @@ Doc::op('GET', '/catalogue')->tag('Catalogue')->scope('services:read')
         P::str('location', 'The destination by name, when you do not have its id.', ['example' => 'Victoria Falls']),
         P::str('types', 'Comma separated: `activities`, `packages`, `stays`, `transports`, `restaurants`. Default all.', ['example' => 'activities,stays']),
         P::str('updated_since', 'A date or date-time: only what changed since then.', ['example' => '2026-09-01']),
+        P::str('lang', 'The language for names and descriptions, e.g. `fr`; where something is not translated it stays in your default language. Also read from `Accept-Language`. The response says which under `language`.', ['example' => 'fr']),
     ])
     ->errors(['location_required' => [422, 'Neither `location_id` nor `location` was given.'], 'location_not_found' => [404, 'No such destination.']])
     ->returns(200, S::obj(['data' => S::obj([

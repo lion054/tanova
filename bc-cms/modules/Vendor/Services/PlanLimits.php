@@ -32,6 +32,12 @@ class PlanLimits
         if (!$vendor->vendor_plan_enable) {
             return ['status' => 402, 'code' => 'subscription_required', 'message' => 'An active subscription is required to create listings.'];
         }
+        // The type's Tanova OS must be one the company operates (Stay OS for hotels, Exp OS for tours, ...).
+        if (!CompanyOs::allowsType($vendor, $type)) {
+            $os = CompanyOs::all()[CompanyOs::forType($type)]['name'] ?? '';
+
+            return ['status' => 403, 'code' => 'plan_os_not_included', 'message' => "You do not operate {$os}. Add it under Plan & billing to create {$type} listings."];
+        }
         $planData = $vendor->vendorPlanData;
         // A plan with no rule for this type puts no limit on it.
         if (empty($planData) || !isset($planData[$type])) {

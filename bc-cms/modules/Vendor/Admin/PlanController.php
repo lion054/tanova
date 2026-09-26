@@ -45,8 +45,12 @@ class PlanController extends AdminController
                 'price'            => 'required|numeric|min:0',
                 'price_annual'     => 'nullable|numeric|min:0',
                 'base_commission'  => 'required|integer|min:0|max:100',
+                'os_limit'         => 'nullable|integer|min:0|max:20',
+                'max_staff'        => 'nullable|integer|min:0|max:10000',
+                'addon_price'      => 'nullable|numeric|min:0',
+                'addon_price_annual' => 'nullable|numeric|min:0',
             ]);
-            $row = new VendorPlan($request->only(['name', 'price', 'price_annual', 'base_commission', 'status']));
+            $row = new VendorPlan($this->planFields($request));
             if ($row->save()) {
                 if (!empty($request->services_options)) {
                     foreach ($request->services_options as $service) {
@@ -82,8 +86,12 @@ class PlanController extends AdminController
                 'price'           => 'required|numeric|min:0',
                 'price_annual'    => 'nullable|numeric|min:0',
                 'base_commission' => 'required|integer|min:0|max:100',
+                'os_limit'        => 'nullable|integer|min:0|max:20',
+                'max_staff'       => 'nullable|integer|min:0|max:10000',
+                'addon_price'     => 'nullable|numeric|min:0',
+                'addon_price_annual' => 'nullable|numeric|min:0',
             ]);
-            $row->fill($request->only(['name', 'price', 'price_annual', 'base_commission', 'status']));
+            $row->fill($this->planFields($request));
             if ($row->save()) {
                 foreach ($request->services_options ?? [] as $service) {
                     $meta = $row->meta()->where('post_type', $service['post_type'])->first();
@@ -110,6 +118,12 @@ class PlanController extends AdminController
             ],
         ];
         return view('Vendor::admin.plan.detail', $data);
+    }
+
+    /** The plan's own columns from the form (the checkboxes arrive only when ticked). */
+    protected function planFields(Request $request): array
+    {
+        return $request->only(['name', 'price', 'price_annual', 'base_commission', 'status', 'tagline', 'addon_price', 'addon_price_annual']) + ['os_limit' => (int) $request->input('os_limit'), 'max_staff' => (int) $request->input('max_staff'), 'sort_order' => (int) $request->input('sort_order'), 'highlight' => $request->boolean('highlight'), 'is_public' => $request->boolean('is_public')];
     }
 
     protected function getServiceTypes(): array

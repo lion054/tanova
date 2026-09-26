@@ -54,6 +54,9 @@
                 'phone'       => ['required','unique:users'],
                 'business_name' => ['required', 'string', 'max:255'],   // signing up creates a company
                 'term'       => ['required'],
+                'plan_id'    => ['required', 'integer'],
+                'os'         => ['nullable', 'array'],
+                'os.*'       => ['string', 'max:20'],
             ];
             $messages = [
                 'phone.required'      => __('Phone is required field'),
@@ -64,6 +67,7 @@
                 'last_name.required'  => __('The last name is required field'),
                 'term.required'       => __('The terms and conditions field is required'),
                 'business_name.required' => __('Your company name is required'),
+                'plan_id.required'    => __('Choose a plan.'),
             ];
             if (ReCaptchaEngine::isEnable() and setting_item("user_enable_register_recaptcha")) {
                 $codeCapcha = $request->input('g-recaptcha-response');
@@ -81,6 +85,8 @@
                     'error'    => true,
                     'messages' => $validator->errors()
                 ], 200);
+            } elseif ($problem = \Modules\Vendor\Services\Onboarding::checkChoice((int) $request->input('plan_id'), (array) $request->input('os', []))) {
+                return response()->json(['error' => true, 'messages' => ['os' => [$problem]]], 200);
             } else {
 
                 $user = \App\User::create([
@@ -96,7 +102,7 @@
                     'country'       => $request->input('country'),
                 ]);
                 // Signing up creates a vendor company; the person is made its owner before they are signed in.
-                $onboarding = app(\Modules\Vendor\Services\Onboarding::class)->registerCompany($user);
+                $onboarding = app(\Modules\Vendor\Services\Onboarding::class)->registerCompany($user, (int) $request->input('plan_id'), (array) $request->input('os', []));
                 if ($onboarding['approved']) {
                     $days = $onboarding['trial'] ? (int) now()->diffInDays($onboarding['trial']->ends_at) + 1 : 0;
                     session()->put('welcome_notice', __('Welcome to :site! :company is ready.', ['site' => setting_item('site_title') ?: 'the portal', 'company' => $user->business_name])

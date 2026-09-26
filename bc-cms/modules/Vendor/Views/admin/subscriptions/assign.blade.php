@@ -66,6 +66,16 @@
                         </div>
 
                         <div class="form-group">
+                            <label>{{__('Tanova OS')}} <small class="text-muted">({{__('for plans that cover a set number of OS; the company keeps any extras it has')}})</small></label>
+                            <div>
+                                @foreach(\Modules\Vendor\Services\CompanyOs::all() as $osKey => $osDef)
+                                    <label class="mr-3"><input type="checkbox" name="os[]" value="{{$osKey}}" {{in_array($osKey, (array) old('os', $vendor ? \Modules\Vendor\Services\CompanyOs::chosen($vendor) : [])) ? 'checked' : ''}}> {{$osDef['name']}}</label>
+                                @endforeach
+                            </div>
+                            @error('os')<span class="text-danger">{{$message}}</span>@enderror
+                        </div>
+
+                        <div class="form-group">
                             <label>{{__('Start Date')}} <span class="text-danger">*</span></label>
                             <input type="date" name="starts_at" class="form-control"
                                 value="{{old('starts_at', now()->toDateString())}}" required>

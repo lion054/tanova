@@ -112,16 +112,26 @@ $gateMap   = $navConfig['gated'] ?? [];
 // Vendor plan data: array keyed by post_type, or null
 $planData = $dataUser->vendorPlanData;
 
+// Which Tanova OS this company operates (platform staff see them all). An OS it does not operate is offered once, not listed.
+$osAll      = \Modules\Vendor\Services\CompanyOs::all();
+$osHave     = $dataUser->hasPermission('dashboard_access') ? array_keys($osAll) : \Modules\Vendor\Services\CompanyOs::effective($dataUser);
+$osEntries  = $navConfig['os_entries'] ?? [];
+$entryTitle = config('os_modules.entry_titles', []);
+$hiddenKeys = $navConfig['hidden'] ?? [];
+$osMissing  = $staffTeam ? [] : array_values(array_diff(array_keys($osAll), $osHave));   // staff cannot change the plan, so are not sent to it
+
 $sections  = [];
 $usedKeys  = [];
 
 // Collect a list of keys into [accessible, plan-locked], tracking usedKeys.
-$collect = function (array $keys) use ($menus, $gateMap, $planData, &$usedKeys) {
+$collect = function (array $keys) use ($menus, $gateMap, $planData, $osEntries, $osHave, $entryTitle, &$usedKeys) {
     $active = []; $locked = [];
     foreach ($keys as $key) {
         if (!isset($menus[$key])) continue;
         $usedKeys[] = $key;
+        if (isset($osEntries[$key]) && !in_array($osEntries[$key], $osHave, true)) continue;   // e.g. Departures without Exp OS
         $item     = $menus[$key];
+        if (isset($entryTitle[$key])) $item['title'] = __($entryTitle[$key]);
         $gateType = $gateMap[$key] ?? null;
         if ($gateType && empty($planData[$gateType]['enable'])) {
             $locked[] = $item;
@@ -137,29 +147,38 @@ foreach ($navConfig['sections'] as $sectionId => $sectionCfg) {
     if (!empty($sectionCfg['groups'])) {
         $subgroups = [];
         foreach ($sectionCfg['groups'] as $subId => $subCfg) {
+            if (!empty($subCfg['os'])) {
+                $usedKeys = array_merge($usedKeys, $subCfg['keys'] ?? []);
+                if (!in_array($subCfg['os'], $osHave, true)) continue;   // not operated: offered in the "Add" block below
+            }
             [$sa, $sl] = $collect($subCfg['keys'] ?? []);
             if (empty($sa) && empty($sl)) continue;
-            $subgroups[$subId] = ['label' => __($subCfg['label']), 'active' => $sa, 'locked' => $sl];
+            $subLabel = !empty($subCfg['os']) ? $osAll[$subCfg['os']]['name'] : __($subCfg['label']);
+            $subgroups[$subId] = ['label' => $subLabel, 'active' => $sa, 'locked' => $sl];
         }
-        if (empty($subgroups)) continue;
-        $sections[$sectionId] = ['label' => __($sectionCfg['label']), 'subgroups' => $subgroups, 'active' => [], 'locked' => []];
+        if (empty($subgroups) && empty($osMissing)) continue;
+        $sections[$sectionId] = ['label' => __($sectionCfg['label']), 'icon' => $sectionCfg['icon'] ?? 'icofont-simple-right', 'subgroups' => $subgroups, 'active' => [], 'locked' => [], 'osMissing' => $osMissing];
         continue;
     }
 
     // Flat section
     [$active, $locked] = $collect($sectionCfg['keys'] ?? []);
     if (empty($active) && empty($locked)) continue;
-    $sections[$sectionId] = ['label' => __($sectionCfg['label']), 'active' => $active, 'locked' => $locked];
+    $sections[$sectionId] = ['label' => __($sectionCfg['label']), 'icon' => $sectionCfg['icon'] ?? 'icofont-simple-right', 'active' => $active, 'locked' => $locked];
 }
 
 // Overflow: items not assigned to any section (except admin handled separately)
 $overflow = [];
 foreach ($menus as $key => $item) {
-    if (!in_array($key, $usedKeys) && $key !== 'admin') {
+    if (!in_array($key, $usedKeys) && $key !== 'admin' && !in_array($key, $hiddenKeys, true)) {
         $overflow[] = $item;
     }
 }
 $adminItem = $staffTeam ? null : ($menus['admin'] ?? null);
+if (!empty($overflow)) {
+    if (isset($sections['settings'])) { $sections['settings']['active'] = array_merge($sections['settings']['active'], $overflow); }
+    else { $sections['settings'] = ['label' => __('Company'), 'icon' => 'icofont-gear', 'active' => $overflow, 'locked' => []]; }
+}
 
 // ── 5. Helper: clean icon class (strip legacy 'icon ' prefix) ──────────
 if (!function_exists('tsoka_icon')) {
@@ -185,9 +204,6 @@ if (!function_exists('tsoka_icon')) {
 }
 .dashboard { padding-left: 264px !important; display: block !important; transition: padding-left .26s cubic-bezier(.4,0,.2,1) !important; }
 .dashboard__main { margin-left: 0 !important; }
-body.tnv-rail .dashboard, body.tnv-rail .bc_user_profile.dashboard { padding-left: 72px !important; }
-body.tnv-rail .tsoka-sidebar { width: 72px !important; min-width: 72px !important; }
-body.tnv-rail .ph-logo { width: 72px !important; }
 
 /* Brand */
 .tsoka-sb-brand {
@@ -203,8 +219,14 @@ body.tnv-rail .ph-logo { width: 72px !important; }
     transition:color .15s, background .15s !important;
 }
 .tnv-rail-btn:hover { color:var(--tnv-text) !important; background:rgba(255,255,255,.06) !important; }
-body.tnv-rail .tsoka-sb-brand img { opacity:0 !important; }
 
+.tnv-planpill { display:flex !important; align-items:center !important; justify-content:space-between !important; margin:10px 14px 2px !important; padding:8px 12px !important; border:1px solid rgba(255,255,255,.10) !important; border-radius:8px !important; text-decoration:none !important; color:var(--tnv-text) !important; font-size:13px !important; }
+.tnv-planpill:hover { background:rgba(255,255,255,.05) !important; }
+.tnv-planpill-name { font-weight:600 !important; }
+.tnv-planpill-note { font-size:11px !important; color:var(--tnv-muted) !important; }
+.tnv-planpill.is-warn .tnv-planpill-note { color:var(--tnv-gold) !important; }
+.tnv-planpill.is-alert { border-color:rgba(224,162,59,.6) !important; }
+.tnv-planpill.is-alert .tnv-planpill-note { color:var(--tnv-gold) !important; }
 /* "Become a vendor" CTA */
 .tsoka-sb-user { padding:14px 18px !important; }
 .tsoka-sb-upgrade { display:inline-block !important; font-size:11px !important; font-weight:600 !important; letter-spacing:.04em !important; color:#0d0d10 !important; background:var(--tnv-gold) !important; border-radius:6px !important; padding:7px 14px !important; text-decoration:none !important; }
@@ -243,8 +265,8 @@ body.tnv-rail .tsoka-sb-brand img { opacity:0 !important; }
 /* Links */
 .tsoka-sidebar .tnv-link {
     position:relative !important; display:flex !important; align-items:center !important; gap:13px !important;
-    margin:2px 10px !important; padding:10px 14px !important; border-radius:9px !important;
-    font-size:14.5px !important; font-weight:400 !important; color:var(--tnv-muted) !important;
+    margin:1px 10px !important; padding:8px 14px !important; border-radius:9px !important;
+    font-size:14px !important; font-weight:400 !important; color:var(--tnv-muted) !important;
     text-decoration:none !important; white-space:nowrap !important; background:transparent !important;
     transition:color .16s ease, background .16s ease, transform .16s ease !important;
 }
@@ -282,27 +304,60 @@ body.tnv-rail .tsoka-sb-brand img { opacity:0 !important; }
 .tsoka-sb-locked { margin:4px 14px 8px !important; border:1px dashed rgba(255,255,255,.10) !important; border-radius:8px !important; padding:8px 10px 6px !important; }
 .tsoka-sb-locked-label { font-size:9px !important; font-weight:700 !important; letter-spacing:.1em !important; text-transform:uppercase !important; color:var(--tnv-label) !important; margin-bottom:4px !important; display:block !important; }
 .tsoka-sb-locked-item { display:flex !important; align-items:center !important; gap:10px !important; padding:5px 2px !important; color:var(--tnv-label) !important; font-size:12px !important; }
+.tsoka-sb-locked-item.tnv-addos { text-decoration:none !important; }
+.tsoka-sb-locked-item.tnv-addos:hover, .tsoka-sb-locked-item.tnv-addos:hover i { color:var(--tnv-text) !important; }
 .tsoka-sb-locked-item i { font-size:15px !important; width:20px !important; text-align:center !important; flex-shrink:0 !important; }
 .tsoka-sb-locked-item .tsoka-sb-lock { margin-left:auto !important; font-size:11px !important; }
 
 /* Pinned footer area (settings + logout) */
 .tnv-foot { flex-shrink:0 !important; border-top:1px solid var(--tnv-line) !important; padding:8px 0 12px !important; }
 
-/* ───────── Rail (collapsed) mode ───────── */
-body.tnv-rail .tnv-group-head, body.tnv-rail .tsoka-sb-user,
-body.tnv-rail .tnv-link .tnv-label, body.tnv-rail .tnv-link .tnv-new,
-body.tnv-rail .tnv-children, body.tnv-rail .tsoka-sb-locked,
-body.tnv-rail .tnv-link span:not(.tnv-badge) { display:none !important; }
-body.tnv-rail .tnv-group-body { grid-template-rows:1fr !important; }   /* show all icons in rail */
-body.tnv-rail .tsoka-sidebar .tnv-link { justify-content:center !important; margin:2px 8px !important; padding:9px 0 !important; gap:0 !important; }
-body.tnv-rail .tnv-badge { position:absolute !important; top:3px !important; right:8px !important; min-width:8px !important; height:8px !important; padding:0 !important; }
+.tnv-ghead-ic { display:none !important; }
+.tnv-backdrop { display:none; }
+
+/* ───────── Rail (collapsed) mode: desktop only ───────── */
+@media (min-width: 992px) {
+    body.tnv-rail .dashboard, body.tnv-rail .bc_user_profile.dashboard { padding-left: 72px !important; }
+    body.tnv-rail .main-header { padding-left: 72px !important; }
+    body.tnv-rail .tsoka-sidebar { width: 72px !important; min-width: 72px !important; }
+    body.tnv-rail .tsoka-sb-brand { padding:0 !important; justify-content:center !important; }
+    body.tnv-rail .tsoka-sb-brand img { display:none !important; }
+    body.tnv-rail .tsoka-sb-brand::before { content:'' !important; width:26px !important; height:26px !important; background:url('{{ url('/images/tanova/tanova-white.png') }}') left center / auto 26px no-repeat !important; }
+    body.tnv-rail .tsoka-sb-user, body.tnv-rail .tnv-children, body.tnv-rail .tsoka-sb-locked, body.tnv-rail .tnv-subgroup,
+    body.tnv-rail .tnv-link .tnv-label, body.tnv-rail .tnv-group-label, body.tnv-rail .tnv-chev, body.tnv-rail .tnv-link span:not(.tnv-badge) { display:none !important; }
+    /* One icon per group; clicking it opens the menu at that group (see tnvToggleGroup). */
+    body.tnv-rail .tnv-group:not(.tnv-overview) > .tnv-group-body { grid-template-rows:0fr !important; }
+    body.tnv-rail .tnv-group-head { display:flex !important; justify-content:center !important; padding:0 !important; margin:3px 8px !important; width:calc(100% - 16px) !important; height:42px !important; border-radius:9px !important; align-items:center !important; }
+    body.tnv-rail .tnv-group-head:hover { background:rgba(255,255,255,.06) !important; }
+    body.tnv-rail .tnv-ghead-ic { display:inline-block !important; font-size:19px !important; color:var(--tnv-muted) !important; }
+    body.tnv-rail .tnv-group-head:hover .tnv-ghead-ic, body.tnv-rail .tnv-group.is-open > .tnv-group-head .tnv-ghead-ic { color:var(--tnv-gold) !important; }
+    body.tnv-rail .tsoka-sb-nav > .tnv-group + .tnv-group { border-top:1px solid var(--tnv-line) !important; margin-top:4px !important; padding-top:4px !important; }
+    body.tnv-rail .tsoka-sb-nav > .tnv-overview + .tnv-group { border-top:0 !important; }
+    body.tnv-rail .tsoka-sidebar .tnv-link { justify-content:center !important; margin:2px 8px !important; padding:11px 0 !important; gap:0 !important; }
+    body.tnv-rail .tnv-badge { position:absolute !important; top:3px !important; right:8px !important; min-width:8px !important; height:8px !important; padding:0 !important; }
+    body.tnv-rail .tnv-foot .tnv-link { padding:11px 0 !important; }
+}
+
+/* ───────── Phones and tablets: the menu is a drawer ───────── */
+@media (max-width: 991px) {
+    .tsoka-sidebar { width:284px !important; min-width:284px !important; transform:translateX(-102%) !important; transition:transform .26s cubic-bezier(.4,0,.2,1) !important; }
+    body.tnv-navopen .tsoka-sidebar { transform:none !important; box-shadow:0 0 48px rgba(0,0,0,.45) !important; }
+    .dashboard, .bc_user_profile.dashboard { padding-left:0 !important; }
+    .main-header { padding-left:0 !important; }
+    .tnv-rail-btn { display:none !important; }
+    .tnv-backdrop { position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:10000; opacity:0; pointer-events:none; transition:opacity .26s; display:block; }
+    body.tnv-navopen .tnv-backdrop { opacity:1; pointer-events:auto; }
+    body.tnv-navopen { overflow:hidden; }
+    .dashboard__content > div:not([class*="tsoka"]):not(.modal), .bc-user-dashboard, .bc-booking-history, .bc-user-profile, .bc-change-password, .bc-wishlist, .bc-vendor-dashboard, .bc-vendor-booking, .bc-vendor-service { padding:20px 16px !important; }
+}
 
 @media (prefers-reduced-motion: reduce) {
     .tsoka-sidebar, .dashboard, .tnv-chev, .tnv-group-body, .tsoka-sidebar .tnv-link, .tsoka-sidebar .tnv-link i { transition:none !important; }
 }
 </style>
 
-<div class="tsoka-sidebar">
+<div class="tnv-backdrop" onclick="tnvCloseDrawer()"></div>
+<div class="tsoka-sidebar" id="tnvSidebar">
 
     {{-- Brand --}}
     <div class="tsoka-sb-brand">
@@ -310,9 +365,6 @@ body.tnv-rail .tnv-badge { position:absolute !important; top:3px !important; rig
             {{-- Tanova white wordmark for the dark vendor sidebar --}}
             <img src="{{ url('/images/tanova/tanova-white.png') }}" alt="Tanova">
         </a>
-        <button type="button" class="tnv-rail-btn" onclick="tnvToggleRail()" title="{{ __('Collapse menu') }}" aria-label="{{ __('Collapse menu') }}">
-            <i class="icofont-navigation-menu" style="font-size:16px"></i>
-        </button>
     </div>
 
     {{-- Company details intentionally omitted here — shown in the top-right profile menu.
@@ -324,10 +376,7 @@ body.tnv-rail .tnv-badge { position:absolute !important; top:3px !important; rig
     @endif
 
     {{-- Accordion nav (working groups; 'settings' is pinned in the footer below) --}}
-    @php
-        $settingsSection = $sections['settings'] ?? null;
-        $workingSections = $sections; unset($workingSections['settings']);
-    @endphp
+    @php $workingSections = $sections; @endphp
     @php
         // true if a list of items (or their children) contains the active page
         $tnvScan = function ($items) {
@@ -352,7 +401,8 @@ body.tnv-rail .tnv-badge { position:absolute !important; top:3px !important; rig
             @endphp
             <div class="tnv-group {{ $isOverview ? 'tnv-overview' : '' }} {{ ($groupOpen || $isOverview) ? 'is-open' : '' }}" data-group="{{ $sectionId }}">
                 @unless($isOverview)
-                    <button type="button" class="tnv-group-head" onclick="tnvToggleGroup(this)">
+                    <button type="button" class="tnv-group-head" onclick="tnvToggleGroup(this)" title="{{ $section['label'] }}">
+                        <i class="tnv-ghead-ic {{ $section['icon'] }}"></i>
                         <span class="tnv-group-label">{{ $section['label'] }}</span>
                         <i class="icofont-simple-down tnv-chev"></i>
                     </button>
@@ -374,6 +424,14 @@ body.tnv-rail .tnv-badge { position:absolute !important; top:3px !important; rig
                                 </div></div>
                             </div>
                         @endforeach
+                        @if(!empty($section['osMissing']))
+                            <div class="tsoka-sb-locked">
+                                <span class="tsoka-sb-locked-label">{{ empty($section['subgroups']) ? __('Choose what you offer') : __('Add to your plan') }}</span>
+                                @foreach($section['osMissing'] as $missingKey)
+                                    <a class="tsoka-sb-locked-item tnv-addos" href="{{ route('vendor.subscription.index') }}#os" title="{{ __($osAll[$missingKey]['tagline']) }}"><i class="{{ $osAll[$missingKey]['icon'] }}"></i><span>{{ $osAll[$missingKey]['name'] }}</span><i class="icofont-plus tsoka-sb-lock"></i></a>
+                                @endforeach
+                            </div>
+                        @endif
                     @else
                         @foreach($section['active'] as $menuItem)
                             @include('vendor.partials.sb-item')
@@ -393,33 +451,8 @@ body.tnv-rail .tnv-badge { position:absolute !important; top:3px !important; rig
         @endforeach
     </nav>
 
-    {{-- Pinned footer: Settings (collapsible) + admin + logout --}}
+    {{-- Pinned footer: platform switch and log out --}}
     <div class="tnv-foot">
-        @php
-            $settingsItems = $settingsSection['active'] ?? [];
-            if (!empty($overflow)) { $settingsItems = array_merge($settingsItems, $overflow); }
-            $settingsOpen = false;
-            foreach ($settingsItems as $mi) { if (str_contains($mi['class'] ?? '', 'is-active')) { $settingsOpen = true; break; } }
-        @endphp
-        @if(!empty($settingsItems))
-            <div class="tnv-group {{ $settingsOpen ? 'is-open' : '' }}" data-group="settings">
-                <button type="button" class="tnv-group-head" onclick="tnvToggleGroup(this)">
-                    <span class="tnv-group-label">{{ __('Settings') }}</span>
-                    <i class="icofont-simple-down tnv-chev"></i>
-                </button>
-                <div class="tnv-group-body"><div>
-                    @foreach($settingsItems as $menuItem)
-                        @php $icon = tsoka_icon($menuItem['icon'] ?? ''); $active = str_contains($menuItem['class'] ?? '', 'is-active'); @endphp
-                        <a href="{{ url($menuItem['url']) }}" class="tnv-link {{ $active ? 'is-active' : '' }}" title="{{ strip_tags($menuItem['title']) }}">
-                            @if($icon)<i class="{{ $icon }}"></i>@endif
-                            <span class="tnv-label">{!! clean($menuItem['title']) !!}</span>
-                            @if(!empty($menuItem['is_new']))<span class="tnv-new">{{ __('New') }}</span>@endif
-                        </a>
-                    @endforeach
-                </div></div>
-            </div>
-        @endif
-
         @if($adminItem)
             <a href="{{ url($adminItem['url']) }}" class="tnv-link" title="{{ strip_tags($adminItem['title']) }}">
                 <i class="{{ tsoka_icon($adminItem['icon'] ?? 'icofont-crown') }}"></i>

@@ -33,6 +33,49 @@
                     </div>
                 </div>
 
+                {{-- What the plan covers (Tanova OS) --}}
+                <div class="panel">
+                    <div class="panel-title"><strong>{{__('What the plan covers')}}</strong></div>
+                    <div class="panel-body">
+                        <div class="form-group">
+                            <label>{{__('Tagline')}}</label>
+                            <input type="text" name="tagline" class="form-control" maxlength="190" value="{{old('tagline', $row->tagline)}}" placeholder="{{__('One line for the sign-up and plan pages')}}">
+                        </div>
+                        <div class="row">
+                            <div class="col-md-4"><div class="form-group">
+                                <label>{{__('Tanova OS included')}}</label>
+                                <input type="number" name="os_limit" class="form-control" min="0" max="20" value="{{old('os_limit', $row->os_limit ?? 0)}}">
+                                <small class="text-muted">{{__('How many OS the company may pick (any of them). 0 = every OS.')}}</small>
+                            </div></div>
+                            <div class="col-md-4"><div class="form-group">
+                                <label>{{__('Staff seats')}}</label>
+                                <input type="number" name="max_staff" class="form-control" min="0" value="{{old('max_staff', $row->max_staff ?? 0)}}">
+                                <small class="text-muted">{{__('0 = unlimited.')}}</small>
+                            </div></div>
+                            <div class="col-md-4"><div class="form-group">
+                                <label>{{__('Display order')}}</label>
+                                <input type="number" name="sort_order" class="form-control" min="0" value="{{old('sort_order', $row->sort_order ?? 0)}}">
+                            </div></div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6"><div class="form-group">
+                                <label>{{__('Extra OS: price per month')}}</label>
+                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{setting_item('currency_symbol','$')}}</span></div>
+                                <input type="number" name="addon_price" class="form-control" min="0" step="0.01" value="{{old('addon_price', $row->addon_price)}}"></div>
+                                <small class="text-muted">{{__('Blank = this plan cannot take extra OS.')}}</small>
+                            </div></div>
+                            <div class="col-md-6"><div class="form-group">
+                                <label>{{__('Extra OS: price per year')}}</label>
+                                <div class="input-group"><div class="input-group-prepend"><span class="input-group-text">{{setting_item('currency_symbol','$')}}</span></div>
+                                <input type="number" name="addon_price_annual" class="form-control" min="0" step="0.01" value="{{old('addon_price_annual', $row->addon_price_annual)}}"></div>
+                            </div></div>
+                        </div>
+                        <label class="mr-4"><input type="checkbox" name="highlight" value="1" {{old('highlight', $row->highlight) ? 'checked' : ''}}> {{__('Mark as popular')}}</label>
+                        <label><input type="checkbox" name="is_public" value="1" {{old('is_public', $row->id ? $row->is_public : true) ? 'checked' : ''}}> {{__('Offer on sign-up and the plan page')}}</label>
+                        <p class="text-muted mt-2 mb-0"><small>{{__('The service table below sets how many listings of each type the plan allows. A company can only create types for the OS it operates.')}}</small></p>
+                    </div>
+                </div>
+
                 {{-- Subscription Pricing --}}
                 <div class="panel">
                     <div class="panel-title"><strong>{{__('Subscription Pricing')}}</strong></div>

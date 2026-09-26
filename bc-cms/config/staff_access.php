@@ -15,7 +15,7 @@ return [
             'user/tour', 'user/tour/*', 'user/hotel', 'user/hotel/*', 'user/space', 'user/space/*', 'user/car', 'user/car/*', 'user/boat', 'user/boat/*',
             'user/event', 'user/event/*', 'user/flight', 'user/flight/*', 'user/visa', 'user/visa/*',
             'vendor/meals', 'vendor/meals/*', 'vendor/restaurants', 'vendor/restaurants/*', 'vendor/catalogs', 'vendor/catalogs/*', 'vendor/pricing-tiers', 'vendor/pricing-tiers/*',
-            'vendor/upsells', 'vendor/upsells/*', 'vendor/marketplace', 'vendor/marketplace/*', 'vendor/itineraries', 'vendor/itineraries/*']],
+            'vendor/languages', 'vendor/languages/*', 'vendor/upsells', 'vendor/upsells/*', 'vendor/marketplace', 'vendor/marketplace/*', 'vendor/itineraries', 'vendor/itineraries/*']],
         'finance'   => ['label' => 'Finance: TourPay, invoices, statement', 'patterns' => ['user/tourpay', 'user/tourpay/*', 'vendor/invoices', 'vendor/invoices/*']],
         'marketing' => ['label' => 'Marketing: campaigns, messages, coupons, news', 'patterns' => ['vendor/campaigns', 'vendor/campaigns/*', 'vendor/scheduled-messages', 'vendor/scheduled-messages/*', 'vendor/holidays', 'vendor/holidays/*', 'user/coupon', 'user/coupon/*', 'vendor/news', 'vendor/news/*']],
         'insights'  => ['label' => 'Reports and analytics', 'patterns' => ['vendor/analytics', 'vendor/analytics/*', 'vendor/trending', 'vendor/trending/*', 'vendor/booking-report', 'vendor/booking-report/*']],

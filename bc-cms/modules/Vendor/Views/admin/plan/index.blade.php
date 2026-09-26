@@ -20,6 +20,8 @@
                             <th>{{__('Name')}}</th>
                             <th width="160px">{{__('Monthly Price')}}</th>
                             <th width="160px">{{__('Annual Price')}}</th>
+                            <th width="120px">{{__('OS')}}</th>
+                            <th width="90px">{{__('Staff')}}</th>
                             <th width="130px">{{__('Commission')}}</th>
                             <th width="100px">{{__('Status')}}</th>
                             <th width="120px">{{__('Actions')}}</th>
@@ -37,6 +39,8 @@
                                 </td>
                                 <td>{{format_money($row->price)}}</td>
                                 <td>{{$row->price_annual ? format_money($row->price_annual) : '—'}}</td>
+                                <td>{{$row->coversAllOs() ? __('All') : $row->os_limit}}</td>
+                                <td>{{$row->max_staff ?: __('Unlimited')}}</td>
                                 <td>{{$row->base_commission}}%</td>
                                 <td>
                                     <span class="badge badge-{{$row->status == 'publish' ? 'success' : 'secondary'}}">
@@ -51,7 +55,7 @@
                             </tr>
                             @endforeach
                         @else
-                            <tr><td colspan="7">{{__("No plans found. Create your first plan.")}}</td></tr>
+                            <tr><td colspan="9">{{__("No plans found. Create your first plan.")}}</td></tr>
                         @endif
                         </tbody>
                     </table>

@@ -36,6 +36,18 @@ Route::group(['prefix'=>'vendor','middleware' => ['auth']],function(){
 Route::group(['prefix'=>'vendor/subscription','middleware'=>['auth']],function(){
     Route::get('/','SubscriptionController@index')->name('vendor.subscription.index');
     Route::get('/plans','SubscriptionController@plans')->name('vendor.subscription.plans');
+    Route::post('/os','SubscriptionController@chooseOs')->name('vendor.subscription.os');
+    Route::post('/order','SubscriptionController@order')->name('vendor.subscription.order');
+    Route::post('/order/{id}/cancel','SubscriptionController@cancelOrder')->name('vendor.subscription.order.cancel');
+});
+
+// ── Languages: translate the company's services ───────────────────────────
+Route::group(['prefix' => 'vendor/languages', 'middleware' => ['auth']], function () {
+    Route::get('/',  'LanguagesController@index')->name('vendor.languages.index');
+    Route::post('/', 'LanguagesController@store')->name('vendor.languages.store');
+    Route::post('/add', 'LanguagesController@addLanguage')->name('vendor.languages.add');
+    Route::post('/ai/queue', 'LanguagesController@aiQueue')->name('vendor.languages.ai.queue')->middleware('throttle:60,1');
+    Route::post('/ai/run', 'LanguagesController@aiRun')->name('vendor.languages.ai.run')->middleware('throttle:240,1');
 });
 
 // ── API Key management portal (vendor self-service) ───────────────────────

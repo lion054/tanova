@@ -36,6 +36,9 @@ class TeamController extends FrontendController
             'permissions.*' => ['in:' . implode(',', $modules)],
         ]);
         $owner = auth()->user();
+        if (\Modules\Vendor\Services\CompanyOs::seatsLeft($owner) === 0) {
+            return back()->withInput()->with('danger', __('Your plan\'s staff seats are all used. Remove someone, or move to a bigger plan under Plan & billing.'));
+        }
         $email = strtolower(trim($data['email']));
         if (strtolower((string) $owner->email) === $email) {
             return back()->withInput()->with('danger', __('You cannot add yourself.'));

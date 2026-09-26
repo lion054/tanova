@@ -3,64 +3,75 @@
 /**
  * Vendor sidebar navigation structure (Tanova portal).
  *
- * sections: ordered list of groups, each with a label and the menu keys that
- *   belong to it. Keys match what each module's getUserMenu() returns. Missing
- *   keys are skipped automatically.
+ * sections: ordered list of groups, each with a label and the menu keys that belong to it. Keys match what each module's getUserMenu()
+ *   returns. Missing keys are skipped automatically.
+ *
+ * Products are grouped by Tanova OS (config/os_modules.php). A company sees the OS it operates; the others are offered once, at the
+ * bottom of Products, as "Add ..." links to Plan & billing. A group with 'os' => key follows that rule.
  *
  * Rendering (themes/GoTrip/User/.../sidebar.blade.php):
  *   - 'overview'  renders flush at the top (no collapsible header).
- *   - working groups render as collapsible accordions (one open at a time;
- *     the group containing the active item opens by default).
+ *   - working groups render as collapsible accordions (the group holding the active item opens by default).
  *   - 'settings'  is pinned at the bottom as a collapsible group.
- *
- * gated: maps a menu key → plan post_type that must be enabled. Gated items the
- *   vendor can't access yet render muted in an "upgrade" block.
  */
 return [
 
     'sections' => [
         'overview' => [
-            'label' => 'Overview',
-            'keys'  => ['dashboard', 'today', 'team'],   // Team (staff) stays in view at the top: adding employees is a first step, not a setting
+            'label' => 'Home',
+            'icon'  => 'icofont-home',
+            'keys'  => ['dashboard', 'today', 'team', 'languages'],   // Languages sits on its own under Home, always in view   // Team (staff) stays in view at the top: adding employees is a first step, not a setting
         ],
         'bookings' => [
             'label' => 'Bookings',
-            'keys'  => ['vendor-bookings', 'departures', 'checkin', 'waitlist', 'customers', 'booking-history', 'enquiry'],
+            'icon'  => 'icofont-calendar',
+            'keys'  => ['vendor-bookings', 'departures', 'checkin', 'waitlist', 'customers', 'enquiry'],
         ],
         'catalog' => [
-            'label'  => 'Catalog',
-            // Nested sub-groups so an expanded Catalog stays short and scannable.
+            'label'  => 'Products',
+            'icon'   => 'icofont-box',
             'groups' => [
-                'stays'      => ['label' => 'Stays', 'keys' => ['hotel', 'space']],
-                'activities' => ['label' => 'Activities', 'keys' => ['tour', 'event']],
-                'transport'  => ['label' => 'Transport', 'keys' => ['car', 'boat', 'flight']],
-                'dining'     => ['label' => 'Dining', 'keys' => ['meals', 'restaurants']],
-                'overview'   => ['label' => 'All catalogs', 'keys' => ['catalogs']],
-                'access'     => ['label' => 'Access', 'keys' => ['visa']],
-                'pricing'    => ['label' => 'Pricing & Add-ons', 'keys' => ['pricing_tiers', 'upsells']],
+                'stay'    => ['os' => 'stay',    'keys' => ['hotel', 'space']],
+                'exp'     => ['os' => 'exp',     'keys' => ['tour']],
+                'trans'   => ['os' => 'trans',   'keys' => ['car', 'boat']],
+                'event'   => ['os' => 'event',   'keys' => ['event']],
+                'airline' => ['os' => 'airline', 'keys' => ['flight']],
+                'visa'    => ['os' => 'visa',    'keys' => ['visa']],
+                'pricing' => ['label' => 'Pricing & Add-ons', 'keys' => ['pricing_tiers', 'upsells']],
             ],
         ],
         'tanova' => [
-            'label' => 'Tanova',
-            'keys'  => ['marketplace', 'itineraries', 'inbox'],
+            'label' => 'Tanova AI',
+            'icon'  => 'icofont-magic',
+            'keys'  => ['tanova', 'marketplace', 'itineraries', 'concierge', 'inbox', 'meals', 'restaurants'],
         ],
         'engage' => [
-            'label' => 'Engage',
+            'label' => 'Marketing',
+            'icon'  => 'icofont-megaphone-alt',
             'keys'  => ['loyalty', 'scheduled_messages', 'occasions', 'holidays', 'campaigns', 'coupon', 'news'],
         ],
         'insights' => [
-            'label' => 'Insights',
+            'label' => 'Reports',
+            'icon'  => 'icofont-chart-bar-graph',
             'keys'  => ['analytics', 'shelves', 'booking_report', 'tracking'],
         ],
         'finance' => [
-            'label' => 'Finance',
-            'keys'  => ['wallet', 'payout', 'tourpay', 'statement'],
+            'label' => 'Money',
+            'icon'  => 'icofont-money',
+            'keys'  => ['tourpay', 'statement', 'wallet', 'payout'],
         ],
         'settings' => [
-            'label' => 'Settings',
-            'keys'  => ['go_live', 'subscription', 'api_keys', 'api_docs', 'integrations', 'operators', 'ai_plan', 'verification', '2fa', 'help'],
+            'label' => 'Company',
+            'icon'  => 'icofont-gear',
+            'keys'  => ['subscription', 'integrations', 'go_live', 'api_keys', 'api_docs', 'operators', 'ai_plan', 'verification', '2fa', 'help'],
         ],
     ],
+
+    /** Entries not shown in the sidebar (still reachable by address): duplicates of a filter or a tab elsewhere. */
+    'hidden' => ['catalogs', 'booking-history', 'my_plan'],
+
+    /** Entries that belong to an OS but sit in another group: hidden when the company does not operate it. */
+    'os_entries' => ['departures' => 'exp'],
 
     'gated' => [],
 

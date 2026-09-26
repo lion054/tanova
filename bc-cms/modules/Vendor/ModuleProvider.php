@@ -18,6 +18,10 @@ class ModuleProvider extends ModuleServiceProvider
                 \Modules\Vendor\Commands\RetryWebhooks::class,
                 \App\Console\Commands\TenantExport::class,
                 \Modules\Vendor\Commands\SyncSubscriptions::class,
+                \Modules\Vendor\Commands\GrantFoundingPlan::class,
+                \Modules\Vendor\Commands\PlanReminders::class,
+                \Modules\Vendor\Commands\TranslateUiStrings::class,
+                \Modules\Vendor\Commands\BackfillTranslationMarks::class,
             ]);
         }
     }
@@ -42,6 +46,14 @@ class ModuleProvider extends ModuleServiceProvider
                 'title'      => __('Vendor Plans'),
                 'icon'       => 'icon ion-ios-pricetags',
                 'permission' => 'user_create',
+                'group'      => 'system',
+            ],
+            'vendor_plan_orders' => [
+                'position'   => 68,
+                'url'        => route('vendor.admin.plan_orders.index'),
+                'title'      => __('Plan orders :count', ['count' => ($pending = \Modules\Vendor\Models\VendorPlanOrder::where('status', 'pending')->count()) ? sprintf('<span class="badge badge-warning">%d</span>', $pending) : '']),
+                'icon'       => 'icon ion-ios-cash',
+                'permission' => 'vendor_payout_view',
                 'group'      => 'system',
             ],
             'vendor_subscriptions' => [
@@ -162,6 +174,27 @@ class ModuleProvider extends ModuleServiceProvider
             'icon' => 'icon ion-ios-globe', 'position' => 80,
             'permission' => 'dashboard_vendor_access', 'is_new' => true,
         ];
+        // Tanova AI: the trip planner, the concierge and the integrations hub live in the sidebar (they used to be only in the top bar).
+        $res['tanova'] = [
+            'url' => route('admin.tanova.index', [], false), 'title' => __('Tanova AI'),
+            'icon' => 'icon ion-ios-planet', 'position' => 79,
+            'permission' => 'dashboard_vendor_access',
+        ];
+        $res['concierge'] = [
+            'url' => route('user.concierge.index', [], false), 'title' => __('Concierge'),
+            'icon' => 'icon ion-ios-happy', 'position' => 80,
+            'permission' => 'dashboard_vendor_access',
+        ];
+        $res['languages'] = [
+            'url' => route('vendor.languages.index', [], false), 'title' => __('Languages'),
+            'icon' => 'icon ion-ios-globe', 'position' => 91,
+            'permission' => 'dashboard_vendor_access',
+        ];
+        $res['integrations'] = [
+            'url' => route('user.integrations.index', [], false), 'title' => __('Integrations'),
+            'icon' => 'icon ion-ios-link', 'position' => 112,
+            'permission' => 'dashboard_vendor_access',
+        ];
         $res['inbox'] = [
             'url' => route('vendor.inbox.index'), 'title' => __('Inbox'),
             'icon' => 'icon ion-ios-chatbubbles', 'position' => 81,
@@ -182,7 +215,7 @@ class ModuleProvider extends ModuleServiceProvider
 
         $res['subscription'] = [
             'url'        => route('vendor.subscription.index'),
-            'title'      => __('My Subscription'),
+            'title'      => __('Plan & billing'),
             'icon'       => 'icon ion-ios-pricetag',
             'position'   => 79,
             'permission' => 'dashboard_vendor_access',

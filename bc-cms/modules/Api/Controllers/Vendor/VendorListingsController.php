@@ -57,8 +57,10 @@ class VendorListingsController extends VendorApiController
         $imgs = $this->images($rows->pluck('image_id')->filter()->all());
         $locs = DB::table('bc_locations')->whereIn('id', $rows->pluck('location_id')->filter()->unique())->pluck('name', 'id');
 
+        $avail = $this->language($rows);
+
         return response()->json([
-            'data' => $rows->map(fn ($r) => $this->shape($r, $imgs, $locs))->all(),
+            'data' => $rows->map(fn ($r) => $this->shape($r, $imgs, $locs, $avail))->all(),
             'meta' => ['page' => $p->currentPage(), 'per_page' => $p->perPage(), 'total' => $p->total(), 'last_page' => $p->lastPage()],
         ]);
     }
@@ -67,7 +69,9 @@ class VendorListingsController extends VendorApiController
     {
         $r = $this->select($this->type($type))->where('author_id', $this->vendorId())->where('id', $id)->first() ?? abort(404);
 
-        return $this->success($this->shape($r, $this->images([$r->image_id]), DB::table('bc_locations')->where('id', $r->location_id)->pluck('name', 'id')));
+        $avail = $this->language(collect([$r]));
+
+        return $this->success($this->shape($r, $this->images([$r->image_id]), DB::table('bc_locations')->where('id', $r->location_id)->pluck('name', 'id'), $avail));
     }
 
     /** Publish or hide a listing. A hidden listing is not offered anywhere; nothing already booked changes. */
@@ -144,10 +148,29 @@ class VendorListingsController extends VendorApiController
         return array_map(fn ($p) => $base . ltrim($p, '/'), $paths);
     }
 
-    private function shape($r, array $imgs, $locs): array
+    /** Puts the asked-for language's title on each row; returns the other languages each service has, keyed "type:id". */
+    private function language($rows): array
+    {
+        $avail = [];
+        foreach ($rows->groupBy('type') as $type => $group) {
+            if (!isset(\App\Support\ApiLanguage::TABLES[$type])) {
+                continue;
+            }
+            \App\Support\ApiLanguage::objects($type, $group);
+            foreach (\App\Support\ApiLanguage::available($type, $group->pluck('id')) as $id => $langs) {
+                $avail[$type . ':' . $id] = $langs;
+            }
+        }
+
+        return $avail;
+    }
+
+    private function shape($r, array $imgs, $locs, array $avail = []): array
     {
         return [
             'type' => $r->type, 'id' => (int) $r->id, 'title' => trim((string) $r->title), 'status' => $r->status,
+            'language' => \App\Support\ApiLanguage::requested() ?: \App\Support\ApiLanguage::defaultLocale(),
+            'available_languages' => $avail[$r->type . ':' . $r->id] ?? [],
             'price' => $r->price !== null ? (float) $r->price : null,
             'location' => $r->location_id ? ['id' => (int) $r->location_id, 'name' => $locs[$r->location_id] ?? null] : null,
             'image_url' => $r->image_id ? ($imgs[$r->image_id] ?? null) : null,

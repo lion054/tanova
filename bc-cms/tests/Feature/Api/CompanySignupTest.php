@@ -24,13 +24,15 @@ class CompanySignupTest extends ApiTestCase
         Settings::store('vendor_role', (string) DB::table('core_roles')->where('code', 'vendor')->value('id'));
         Settings::store('user_enable_register_recaptcha', 0);
         DB::table('core_vendor_plans')->insert(['name' => 'Dear plan', 'base_commission' => 0, 'price' => 799, 'status' => 'publish', 'created_at' => now(), 'updated_at' => now()]);
-        DB::table('core_vendor_plans')->insert(['name' => 'Starter trial plan', 'base_commission' => 0, 'price' => 99, 'status' => 'publish', 'created_at' => now(), 'updated_at' => now()]);
+        $this->starterId = DB::table('core_vendor_plans')->insertGetId(['name' => 'Starter trial plan', 'base_commission' => 0, 'price' => 99, 'status' => 'publish', 'created_at' => now(), 'updated_at' => now()]);
     }
+
+    private int $starterId;
 
     private function signUp(array $o = [])
     {
         return $this->postJson('/register', $o + ['first_name' => 'Amara', 'last_name' => 'Osei', 'email' => 'amara@sunset.test', 'phone' => '+263770009999', 'password' => 'Str0ng!Pass#2026',
-            'business_name' => 'Sunset Safari Tours', 'country' => 'ZW', 'city' => 'Harare', 'term' => 'on']);
+            'business_name' => 'Sunset Safari Tours', 'country' => 'ZW', 'city' => 'Harare', 'term' => 'on', 'plan_id' => $this->starterId]);
     }
 
     public function test_signing_up_creates_a_vendor_company_on_a_free_trial(): void
@@ -46,7 +48,7 @@ class CompanySignupTest extends ApiTestCase
         $sub = VendorSubscription::where('vendor_id', $u->id)->firstOrFail();
         $this->assertSame('trial', $sub->payment_gateway);
         $this->assertSame('active', $sub->status);
-        $this->assertSame('Starter trial plan', $sub->plan->name, 'the cheapest published plan');
+        $this->assertSame('Starter trial plan', $sub->plan->name, 'the plan they chose');
         $this->assertEqualsWithDelta(14, now()->diffInDays($sub->ends_at), 1);
         $this->assertSame($sub->plan_id, (int) $u->vendor_plan_id);
         $this->assertTrue((bool) $u->vendor_plan_enable);
@@ -59,6 +61,26 @@ class CompanySignupTest extends ApiTestCase
         $this->get('/user/tourpay')->assertOk();
         $this->get('/user/tour/create')->assertOk();   // the trial allows adding listings
         $this->followingRedirects()->get('/user/dashboard')->assertOk();
+    }
+
+    public function test_the_plan_and_the_kinds_of_business_are_chosen_at_sign_up(): void
+    {
+        $hana = (int) DB::table('core_vendor_plans')->where('name', 'Hana')->value('id');
+        $liam = (int) DB::table('core_vendor_plans')->where('name', 'Liam')->value('id');
+        Settings::store('vendor_signup_trial_days', 30);
+
+        $this->signUp(['plan_id' => $hana, 'os' => ['stay', 'exp']])->assertJsonPath('error', true)->assertJsonStructure(['messages' => ['os']]);   // Hana covers one
+        $this->signUp(['plan_id' => $hana, 'os' => []])->assertJsonPath('error', true)->assertJsonStructure(['messages' => ['os']]);
+        $this->signUp(['plan_id' => 999999, 'os' => ['stay']])->assertJsonPath('error', true)->assertJsonStructure(['messages' => ['os']]);
+        $this->signUp(['plan_id' => null])->assertJsonPath('error', true)->assertJsonStructure(['messages' => ['plan_id']]);
+        $this->assertNull(\App\User::where('email', 'amara@sunset.test')->first(), 'nothing was created by the refused attempts');
+
+        $this->signUp(['plan_id' => $liam, 'os' => ['stay', 'exp', 'trans']])->assertJsonPath('error', false);
+        $u = \App\User::where('email', 'amara@sunset.test')->firstOrFail();
+        $this->assertSame($liam, (int) $u->vendor_plan_id);
+        $this->assertEqualsCanonicalizing(['stay', 'exp', 'trans'], \Modules\Vendor\Services\CompanyOs::chosen($u));
+        $this->assertEqualsWithDelta(30, now()->diffInDays($u->vendor_plan_expires_at), 1, 'the trial is 30 days');
+        $this->assertEqualsCanonicalizing(['stay', 'exp', 'trans'], \Modules\Vendor\Services\CompanyOs::effective($u));
     }
 
     public function test_the_welcome_note_says_what_happens_next(): void

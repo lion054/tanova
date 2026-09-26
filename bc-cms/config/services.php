@@ -57,4 +57,11 @@ return [
         'private_key' => env('APPLE_PRIVATE_KEY'), // Required. Must be absolute path, e.g. /var/www/cert/AuthKey_XYZ.p8
     ],
 
+    // Used by the language dashboard to translate a company's services.
+    'deepseek' => [
+        'key' => env('DEEPSEEK_API_KEY'),
+        'model' => env('DEEPSEEK_MODEL', 'deepseek-flash'),
+        'url' => env('DEEPSEEK_URL', 'https://api.deepseek.com/chat/completions'),
+    ],
+
 ];

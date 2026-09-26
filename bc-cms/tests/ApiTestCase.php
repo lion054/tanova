@@ -52,6 +52,9 @@ abstract class ApiTestCase extends TestCase
         $this->vendor->vendor_plan_id = 1;
         $this->vendor->vendor_plan_expires_at = now()->addYear();
         $this->vendor->save();
+        foreach (array_keys(\Modules\Vendor\Services\CompanyOs::all()) as $os) {
+            \Modules\Vendor\Services\CompanyOs::addExtra($this->vendor, $os);   // plan 1 covers one OS; these tests are not about that
+        }
         $this->liveKey = VendorApiKey::generate($this->vendor, 'live', 100000, null, 'secret', 'live')->key;
     }
 
@@ -178,8 +181,8 @@ abstract class ApiTestCase extends TestCase
                 $pdo->exec('DROP TABLE IF EXISTS `' . self::DB . '`.`' . $table . '`');
                 $pdo->exec(preg_replace('/^CREATE TABLE `' . preg_quote($table, '/') . '`/', 'CREATE TABLE `' . self::DB . '`.`' . $table . '`', $sql));
             }
-            // Reference data the portal cannot run without (roles, settings, languages).
-            foreach (['core_roles', 'core_role_permissions', 'core_permissions', 'core_settings', 'core_languages', 'core_translations'] as $t) {
+            // Reference data the portal cannot run without (roles, settings, languages, the plan line-up).
+            foreach (['core_roles', 'core_role_permissions', 'core_permissions', 'core_settings', 'core_languages', 'core_translations', 'core_vendor_plans', 'core_vendor_plan_meta'] as $t) {
                 if (DB::connection('mysql')->getSchemaBuilder()->hasTable($t)) {
                     $pdo->exec('INSERT INTO `' . self::DB . '`.`' . $t . '` SELECT * FROM `' . $devDb . '`.`' . $t . '`');
                 }

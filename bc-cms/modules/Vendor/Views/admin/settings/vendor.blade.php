@@ -93,11 +93,16 @@
                             <div class="form-group"><label><input type="checkbox" @if(($settings['vendor_signup_requires_approval'] ?? '') == 1) checked @endif name="vendor_signup_requires_approval" value="1"> {{__('New companies wait for approval (otherwise they start straight away)')}}</label></div>
                             <div class="form-group">
                                 <label>{{__('Free trial (days)')}}</label>
-                                <input type="number" min="0" max="365" class="form-control" style="max-width:140px;" name="vendor_signup_trial_days" value="{{ $settings['vendor_signup_trial_days'] ?? 14 }}">
+                                <input type="number" min="0" max="365" class="form-control" style="max-width:140px;" name="vendor_signup_trial_days" value="{{ $settings['vendor_signup_trial_days'] ?? 30 }}">
                                 <small class="text-muted">{{__('A new company gets this many days on the plan below. 0 = no trial: a plan is assigned by hand.')}}</small>
                             </div>
                             <div class="form-group">
-                                <label>{{__('Trial plan')}}</label>
+                                <label>{{__('How companies pay for a plan')}}</label>
+                                <textarea name="vendor_plan_payment_instructions" class="form-control" rows="4" placeholder="{{__('Bank details, mobile-money number, payment link... shown next to each order')}}">{{ $settings['vendor_plan_payment_instructions'] ?? '' }}</textarea>
+                                <small class="text-muted">{{__('A company that orders a plan sees this with its order reference. You confirm the payment under Vendor Plans > Plan orders.')}}</small>
+                            </div>
+                            <div class="form-group">
+                                <label>{{__('Default trial plan (when the person does not choose one)')}}</label>
                                 <select name="vendor_signup_plan_id" class="form-control" style="max-width:320px;">
                                     <option value="">{{__('The cheapest published plan')}}</option>
                                     @foreach(\Modules\Vendor\Models\VendorPlan::where('status', 'publish')->orderBy('price')->get() as $plan)

@@ -70,3 +70,4 @@ Schedule::command(\Modules\TourPay\Commands\FxRefreshCommand::class)->dailyAt('0
 
 // Subscriptions that have run out are marked expired, and each business's plan fields are kept in step with its subscription.
 Schedule::command(\Modules\Vendor\Commands\SyncSubscriptions::class)->dailyAt('03:45')->withoutOverlapping();
+Schedule::command(\Modules\Vendor\Commands\PlanReminders::class)->dailyAt('08:00')->withoutOverlapping();

@@ -104,7 +104,7 @@ class SpaceController extends Controller
     {
         $row = $this->spaceClass::where('slug', $slug)->with(['location','translation','hasWishList'])->first();
         if ( empty($row) or !$row->hasPermissionDetailView()) {
-            return redirect('/');
+            abort(404);
         }
         $adminbar_buttons = [];
 

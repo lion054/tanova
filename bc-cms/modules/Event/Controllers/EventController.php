@@ -105,7 +105,7 @@ class EventController extends Controller
     {
         $row = $this->eventClass::where('slug', $slug)->with(['location','translation','hasWishList'])->first();;
         if ( empty($row) or !$row->hasPermissionDetailView()) {
-            return redirect('/');
+            abort(404);
         }
         $adminbar_buttons = [];
 
